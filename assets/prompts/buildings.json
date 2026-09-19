@@ -1,7 +1,10 @@
 {
   "style": "cohesive cozy pixel-art isometric city builder, soft lighting, clean outline, transparent background, single building centered, no UI, no text, no characters",
   "view": "low top-down",
-  "image_size": { "width": 128, "height": 128 },
+  "image_size": {
+    "width": 128,
+    "height": 128
+  },
   "buildings": [
     {
       "id": "main_house",
@@ -28,8 +31,11 @@
     {
       "id": "grass",
       "file": "grass.png",
-      "prompt": "lush green grass on dirt, soft pixel shading, seamless isometric ground tile",
-      "image_size": { "width": 32, "height": 32 },
+      "prompt": "flat seamless isometric grass ground tile only, short uniform green grass, smooth soft shading, clean single color outline, NO trees, NO bushes, NO rocks, NO flowers, NO props, empty open field surface",
+      "image_size": {
+        "width": 32,
+        "height": 32
+      },
       "isometric_tile_shape": "thick tile",
       "isometric_tile_size": 32
     }
