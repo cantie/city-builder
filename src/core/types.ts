@@ -48,6 +48,8 @@ export interface BuildingInstance {
   typeId: BuildingTypeId;
   origin: Cell;
   recipeId?: string;
+  /** Accumulated recipe outputs awaiting manual harvest. */
+  pending?: Partial<Record<ResourceId, number>>;
 }
 
 export interface InventoryState {

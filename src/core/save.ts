@@ -34,12 +34,18 @@ export function serializeGame(state: GameState): SerializedGame {
   return {
     version: 1,
     tick: state.tick,
-    buildings: state.buildings.map((b) => ({
-      id: b.id,
-      typeId: b.typeId,
-      origin: { ...b.origin },
-      recipeId: b.recipeId,
-    })),
+    buildings: state.buildings.map((b) => {
+      const out: BuildingInstance = {
+        id: b.id,
+        typeId: b.typeId,
+        origin: { ...b.origin },
+        recipeId: b.recipeId,
+      };
+      if (b.pending !== undefined || b.recipeId) {
+        out.pending = { ...(b.pending ?? {}) };
+      }
+      return out;
+    }),
     inventory: {
       softCap: state.inventory.softCap,
       amounts: { ...state.inventory.amounts },
@@ -70,7 +76,23 @@ export function deserializeGame(
     }
 
     const grid = new Grid();
-    const buildings = s.buildings as BuildingInstance[];
+    const buildings: BuildingInstance[] = (s.buildings as BuildingInstance[]).map(
+      (b) => {
+        const pending =
+          b.pending !== undefined
+            ? { ...b.pending }
+            : b.recipeId
+              ? {}
+              : undefined;
+        return {
+          id: b.id,
+          typeId: b.typeId,
+          origin: { ...b.origin },
+          recipeId: b.recipeId,
+          ...(pending !== undefined ? { pending } : {}),
+        };
+      },
+    );
     for (const b of buildings) {
       const def = registry.buildings.get(b.typeId);
       if (!def) return null;

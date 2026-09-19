@@ -108,6 +108,33 @@ describe('save/load', () => {
     );
   });
 
+
+  it('defaults missing pending to {} for recipe buildings in old saves', () => {
+    const registry = createRegistry(buildings, recipes, researchDefs);
+    const raw = {
+      version: 1 as const,
+      tick: 0,
+      buildings: [
+        {
+          id: 'farm-1',
+          typeId: 'farm' as const,
+          origin: { x: 0, y: 0 },
+          recipeId: 'basic_food',
+          // no pending field — old save
+        },
+      ],
+      inventory: createInventory(40, { food: 0, wood: 0, stone: 0, coin: 0 }),
+      unlockedBlueprints: ['farm' as const],
+      unlockedRecipes: ['basic_food'],
+      completedResearch: [],
+      availableResearch: [],
+      activeResearch: null,
+    };
+    const loaded = deserializeGame(raw, registry);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.buildings[0].pending).toEqual({});
+  });
+
   it('corrupt payload returns null', () => {
     const registry = createRegistry(buildings, recipes, researchDefs);
     expect(deserializeGame(null, registry)).toBeNull();

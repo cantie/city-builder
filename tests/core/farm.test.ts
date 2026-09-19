@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Grid } from '@/core/grid';
 import { createInventory } from '@/core/inventory';
 import { createRegistry, placeBuilding } from '@/core/buildings';
-import { produceFarms } from '@/core/farm';
+import { produceFarms, harvestBuilding, PENDING_SOFT_CAP } from '@/core/farm';
 import { advanceTick } from '@/core/tick';
 import type { BuildingDef, GameState, RecipeDef } from '@/core/types';
 
@@ -62,26 +62,74 @@ function stateWithFarm(softCap = 100): {
 }
 
 describe('produceFarms', () => {
-  it('adds recipe outputs each call', () => {
+  it('accumulates recipe outputs into pending, not inventory', () => {
     const { state, registry } = stateWithFarm();
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
+    expect(farm.pending).toEqual({});
     produceFarms(state, registry);
-    expect(state.inventory.amounts.food).toBe(2);
+    expect(farm.pending).toEqual({ food: 2 });
+    expect(state.inventory.amounts.food).toBe(0);
     produceFarms(state, registry);
-    expect(state.inventory.amounts.food).toBe(4);
+    expect(farm.pending).toEqual({ food: 4 });
+    expect(state.inventory.amounts.food).toBe(0);
   });
 
-  it('skips production when inventory cannot accept output', () => {
-    const { state, registry } = stateWithFarm(3);
-    state.inventory.amounts.food = 2;
-    state.inventory.amounts.wood = 1;
+  it('skips production when pending soft-cap would be exceeded', () => {
+    const { state, registry } = stateWithFarm();
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
+    farm.pending = { food: PENDING_SOFT_CAP - 1 };
     produceFarms(state, registry);
-    expect(state.inventory.amounts.food).toBe(2);
+    // +2 would exceed 50, so skip
+    expect(farm.pending).toEqual({ food: PENDING_SOFT_CAP - 1 });
   });
 
-  it('advanceTick increments tick and produces', () => {
+  it('advanceTick increments tick and accumulates pending', () => {
     const { state, registry } = stateWithFarm();
     advanceTick(state, registry);
     expect(state.tick).toBe(1);
+    expect(state.inventory.amounts.food).toBe(0);
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
+    expect(farm.pending).toEqual({ food: 2 });
+  });
+});
+
+describe('harvestBuilding', () => {
+  it('moves pending into inventory and clears pending', () => {
+    const { state, registry } = stateWithFarm();
+    produceFarms(state, registry);
+    produceFarms(state, registry);
+    const result = harvestBuilding(state, 'farm-1');
+    expect(result.ok).toBe(true);
+    expect(state.inventory.amounts.food).toBe(4);
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
+    expect(farm.pending).toEqual({});
+  });
+
+  it('fails with inventory full and leaves pending unchanged', () => {
+    const { state, registry } = stateWithFarm(3);
+    state.inventory.amounts.food = 2;
+    state.inventory.amounts.wood = 1;
+    produceFarms(state, registry); // pending food: 2
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
+    expect(farm.pending).toEqual({ food: 2 });
+    const result = harvestBuilding(state, 'farm-1');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('inventory full');
+    expect(farm.pending).toEqual({ food: 2 });
     expect(state.inventory.amounts.food).toBe(2);
+  });
+
+  it('fails when nothing to harvest', () => {
+    const { state } = stateWithFarm();
+    const result = harvestBuilding(state, 'farm-1');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('nothing to harvest');
+  });
+
+  it('fails when building not found', () => {
+    const { state } = stateWithFarm();
+    const result = harvestBuilding(state, 'missing');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('not found');
   });
 });

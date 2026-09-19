@@ -46,6 +46,7 @@ export function placeBuilding(
     typeId,
     origin: { ...origin },
     recipeId: def.defaultRecipeId,
+    ...(def.defaultRecipeId ? { pending: {} } : {}),
   };
   state.grid.occupy(building.id, origin, def.footprint);
   state.buildings.push(building);

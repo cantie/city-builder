@@ -69,10 +69,15 @@ describe('advanceTick', () => {
     placeBuilding(state, registry, 'farm', { x: 0, y: 0 }, () => 'f1');
     startResearch(state, registry, 'r1');
     advanceTick(state, registry);
-    expect(state.inventory.amounts.food).toBe(1);
+    // Manual harvest: tick accumulates pending, not inventory food
+    expect(state.inventory.amounts.food).toBe(0);
+    const farm = state.buildings.find((b) => b.id === 'f1')!;
+    expect(farm.pending).toEqual({ food: 1 });
     expect(state.activeResearch?.remainingTicks).toBe(1);
     expect(state.tick).toBe(1);
     advanceTick(state, registry);
+    expect(farm.pending).toEqual({ food: 2 });
+    expect(state.inventory.amounts.food).toBe(0);
     expect(state.activeResearch).toBeNull();
     expect(state.completedResearch).toContain('r1');
     expect(state.tick).toBe(2);

@@ -69,6 +69,7 @@ describe('placeBuilding / demolishBuilding', () => {
     if (result.ok) {
       expect(result.building.typeId).toBe('farm');
       expect(result.building.recipeId).toBe('basic_food');
+      expect(result.building.pending).toEqual({});
     }
     expect(state.inventory.amounts.wood).toBe(beforeWood - 5);
     expect(state.grid.getOccupant({ x: 0, y: 0 })).toBe('farm-1');

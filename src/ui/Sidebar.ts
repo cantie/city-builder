@@ -1,4 +1,5 @@
 import { demolishBuilding } from '@/core/buildings';
+import { harvestBuilding } from '@/core/farm';
 import { startResearch } from '@/core/research';
 import {
   researchStartDisabledReason,
@@ -217,6 +218,23 @@ export class Sidebar {
           `<div style="margin-top:6px" class="muted">Recipe: ${building.recipeId}</div>`,
         );
       }
+
+      const pending = building.pending ?? {};
+      const pendingEntries = Object.entries(pending).filter(
+        ([, v]) => (v ?? 0) > 0,
+      );
+      if (pendingEntries.length > 0) {
+        const pendingText = pendingEntries
+          .map(([k, v]) => `${v} ${k}`)
+          .join(', ');
+        parts.push(
+          `<div style="margin-top:6px">Pending: <strong>${pendingText}</strong></div>`,
+        );
+      } else {
+        parts.push(
+          `<div style="margin-top:6px" class="muted">Pending: empty</div>`,
+        );
+      }
     }
 
     if (building.typeId === 'main_house') {
@@ -226,6 +244,26 @@ export class Sidebar {
     }
 
     this.selectionBody.innerHTML = parts.join('');
+
+    if (building.recipeId) {
+      const pending = building.pending ?? {};
+      const hasPending = Object.values(pending).some((v) => (v ?? 0) > 0);
+      const harvestBtn = document.createElement('button');
+      harvestBtn.type = 'button';
+      harvestBtn.textContent = 'Harvest';
+      harvestBtn.disabled = !hasPending;
+      harvestBtn.style.marginTop = '8px';
+      harvestBtn.addEventListener('click', () => {
+        const result = harvestBuilding(state, building.id);
+        if (!result.ok) {
+          this.flashStatus(result.reason);
+          return;
+        }
+        this.deps.onStateChange();
+        this.refresh();
+      });
+      this.selectionBody.appendChild(harvestBtn);
+    }
 
     if (building.typeId === 'research_institute') {
       const heading = document.createElement('div');
