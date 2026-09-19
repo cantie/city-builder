@@ -1,5 +1,7 @@
 import * as THREE from 'three';
+import { GRID_HEIGHT, GRID_WIDTH } from '@/core/grid';
 import { TILE_SIZE, tileToWorld } from '@/bridge/coords';
+import { ISO_CAM_DISTANCE } from '@/bridge/cameraSync';
 import type { ContentRegistry } from '@/core/registry';
 import type { BuildingInstance, Cell, Footprint } from '@/core/types';
 
@@ -15,11 +17,13 @@ export function layoutBuildingMesh(
     origin.x + (footprint.width - 1) / 2,
     origin.y + (footprint.height - 1) / 2,
   );
+  // meshHeight is in tile units → world units so height is readable in iso view.
+  const heightWorld = meshHeight * TILE_SIZE;
   return {
-    position: { x: center.x, y: meshHeight / 2, z: center.z },
+    position: { x: center.x, y: heightWorld / 2, z: center.z },
     scale: {
       x: footprint.width * TILE_SIZE * 0.9,
-      y: meshHeight,
+      y: heightWorld,
       z: footprint.height * TILE_SIZE * 0.9,
     },
   };
@@ -45,15 +49,46 @@ export class BuildingRenderer {
       frustum,
       -frustum,
       0.1,
-      2000,
+      4000,
     );
-    this.camera.position.set(320, 400, 320);
-    this.camera.lookAt(320, 0, 320);
+
+    const look = tileToWorld(GRID_WIDTH / 2 - 0.5, GRID_HEIGHT / 2 - 0.5);
+    const d = ISO_CAM_DISTANCE;
+    this.camera.position.set(look.x + d, d * 0.75, look.z + d);
+    this.camera.lookAt(look.x, look.y, look.z);
+
     this.scene.add(this.root);
+    this.addGroundGrid();
+
     const light = new THREE.DirectionalLight(0xffffff, 1.1);
     light.position.set(5, 10, 3);
     this.scene.add(light);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  }
+
+  private addGroundGrid(): void {
+    const pts: number[] = [];
+    const mapW = GRID_WIDTH * TILE_SIZE;
+    const mapH = GRID_HEIGHT * TILE_SIZE;
+    for (let i = 0; i <= GRID_WIDTH; i++) {
+      const x = i * TILE_SIZE;
+      pts.push(x, 0, 0, x, 0, mapH);
+    }
+    for (let j = 0; j <= GRID_HEIGHT; j++) {
+      const z = j * TILE_SIZE;
+      pts.push(0, 0, z, mapW, 0, z);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    const lines = new THREE.LineSegments(
+      geo,
+      new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.12,
+      }),
+    );
+    this.scene.add(lines);
   }
 
   getCamera(): THREE.OrthographicCamera {
