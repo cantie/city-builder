@@ -132,4 +132,12 @@ describe('harvestBuilding', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('not found');
   });
+
+  it('fails with no warehouse when softCap is 0', () => {
+    const { state, registry } = stateWithFarm(0);
+    produceFarms(state, registry);
+    const result = harvestBuilding(state, 'farm-1');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('no warehouse');
+  });
 });

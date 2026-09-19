@@ -1,6 +1,7 @@
 import buildingsJson from '@/data/buildings.json';
 import recipesJson from '@/data/recipes.json';
 import researchJson from '@/data/research.json';
+import upgradesJson from '@/data/upgrades.json';
 import { loadContentFromData } from '@/core/loadContent';
 import { createNewGame } from '@/core/bootstrap';
 import { advanceTick } from '@/core/tick';
@@ -13,17 +14,19 @@ import {
 import { createGame, type GameContext } from '@/phaser/createGame';
 import { Sidebar } from '@/ui/Sidebar';
 import type { BuildingTypeId } from '@/core/types';
+import type { UpgradesConfig } from '@/core/upgrades';
 import type Phaser from 'phaser';
 
 const registry = loadContentFromData(buildingsJson, recipesJson, researchJson);
+const upgrades = upgradesJson as UpgradesConfig;
 const storage = new LocalStorageAdapter();
 const hadSave = storage.getItem(SAVE_KEY) != null;
-let state = loadGame(storage, registry);
+let state = loadGame(storage, registry, upgrades);
 if (!state) {
   if (hadSave) {
     console.warn('Corrupt save — starting new game');
   }
-  state = createNewGame(registry);
+  state = createNewGame(registry, upgrades);
 }
 
 let selected: BuildingTypeId | null = null;
@@ -79,6 +82,7 @@ const game = createGame('phaser-root', ctx);
 const sidebar = new Sidebar({
   getState: () => state,
   registry,
+  upgrades,
   getSelectedBlueprint: () => selected,
   setSelectedBlueprint: (id) => {
     selected = id;

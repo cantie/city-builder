@@ -40,5 +40,15 @@
     "meshHeight": 0.9,
     "defaultRecipeId": "wood_farm",
     "sprite": "/assets/buildings/lumber_yard.png"
+  },
+  {
+    "id": "warehouse",
+    "label": "Warehouse",
+    "footprint": { "width": 1, "height": 1 },
+    "demolishable": true,
+    "cost": { "wood": 8, "stone": 5 },
+    "meshColor": 9139248,
+    "meshHeight": 1.0,
+    "sprite": "/assets/buildings/warehouse.png"
   }
 ]

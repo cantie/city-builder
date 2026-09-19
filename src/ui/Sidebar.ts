@@ -2,15 +2,25 @@ import { demolishBuilding } from '@/core/buildings';
 import { harvestBuilding } from '@/core/farm';
 import { startResearch } from '@/core/research';
 import {
+  getUpgradeDef,
+  upgradeBuilding,
+  upgradeDisabledReason,
+  type UpgradesConfig,
+} from '@/core/upgrades';
+import {
   researchStartDisabledReason,
   unlockedBuildOptions,
 } from '@/phaser/hud/hudLogic';
 import type { ContentRegistry } from '@/core/registry';
 import type { BuildingTypeId, GameState, ResourceId } from '@/core/types';
+import defaultUpgradesJson from '@/data/upgrades.json';
+
+const defaultUpgrades = defaultUpgradesJson as UpgradesConfig;
 
 export interface SidebarDeps {
   getState: () => GameState;
   registry: ContentRegistry;
+  upgrades?: UpgradesConfig;
   getSelectedBlueprint: () => BuildingTypeId | null;
   setSelectedBlueprint: (id: BuildingTypeId | null) => void;
   getSelectedBuildingId: () => string | null;
@@ -40,8 +50,10 @@ export class Sidebar {
   private cancelBuildBtn: HTMLButtonElement;
   private statusEl: HTMLElement;
   private statusTimer: ReturnType<typeof setTimeout> | null = null;
+  private upgrades: UpgradesConfig;
 
   constructor(private deps: SidebarDeps) {
+    this.upgrades = deps.upgrades ?? defaultUpgrades;
     this.resourcesBody = document.getElementById('resources-body')!;
     this.buildBody = document.getElementById('build-body')!;
     this.researchBody = document.getElementById('research-body')!;
@@ -77,12 +89,17 @@ export class Sidebar {
 
   private renderResources(state: GameState): void {
     const a = state.inventory.amounts;
+    const cap = state.inventory.softCap;
+    const capNote =
+      cap <= 0
+        ? 'Warehouse cap 0 — place a warehouse to store harvests'
+        : `Warehouse cap ${cap}`;
     this.resourcesBody.innerHTML = `
       <div>Food <strong>${a.food}</strong></div>
       <div>Wood <strong>${a.wood}</strong></div>
       <div>Stone <strong>${a.stone}</strong></div>
       <div>Coin <strong>${a.coin}</strong></div>
-      <div class="muted" style="margin-top:6px">Tick ${state.tick} · Cap ${state.inventory.softCap}</div>
+      <div class="muted" style="margin-top:6px">Tick ${state.tick} · ${capNote}</div>
     `;
   }
 
@@ -194,8 +211,9 @@ export class Sidebar {
     }
 
     this.selectionBody.className = '';
+    const level = building.level ?? 1;
     const parts: string[] = [];
-    parts.push(`<div><strong>${def.label}</strong></div>`);
+    parts.push(`<div><strong>${def.label}</strong> · Lv ${level}</div>`);
     parts.push(`<div class="muted">type: ${building.typeId}</div>`);
     parts.push(
       `<div class="muted">origin: (${building.origin.x}, ${building.origin.y})</div>`,
@@ -203,6 +221,13 @@ export class Sidebar {
     parts.push(
       `<div class="muted">footprint: ${def.footprint.width}×${def.footprint.height}</div>`,
     );
+
+    if (building.typeId === 'warehouse') {
+      const cap = building.capacity ?? 100;
+      parts.push(
+        `<div style="margin-top:6px">Capacity: <strong>${cap}</strong></div>`,
+      );
+    }
 
     if (building.recipeId) {
       const recipe = this.deps.registry.recipes.get(building.recipeId);
@@ -239,11 +264,47 @@ export class Sidebar {
 
     if (building.typeId === 'main_house') {
       parts.push(
-        `<div style="margin-top:8px" class="muted">City inventory / HQ — cannot demolish.</div>`,
+        `<div style="margin-top:8px" class="muted">City HQ — cannot demolish. Other buildings cannot exceed this level.</div>`,
       );
     }
 
     this.selectionBody.innerHTML = parts.join('');
+
+    // Upgrade button when next level exists in config
+    const nextLevel = level + 1;
+    const upgradeDef = getUpgradeDef(this.upgrades, building.typeId, nextLevel);
+    if (upgradeDef) {
+      const reason = upgradeDisabledReason(
+        state,
+        building.id,
+        this.upgrades,
+      );
+      const costText = formatCost(upgradeDef.cost);
+      const upgradeBtn = document.createElement('button');
+      upgradeBtn.type = 'button';
+      upgradeBtn.style.marginTop = '8px';
+      upgradeBtn.disabled = !!reason;
+      upgradeBtn.textContent = reason
+        ? `Upgrade to Lv ${nextLevel} — ${reason}`
+        : `Upgrade to Lv ${nextLevel} (${costText})`;
+      if (!reason) {
+        upgradeBtn.addEventListener('click', () => {
+          const result = upgradeBuilding(
+            state,
+            this.deps.registry,
+            building.id,
+            this.upgrades,
+          );
+          if (!result.ok) {
+            this.flashStatus(result.reason);
+            return;
+          }
+          this.deps.onStateChange();
+          this.refresh();
+        });
+      }
+      this.selectionBody.appendChild(upgradeBtn);
+    }
 
     if (building.recipeId) {
       const pending = building.pending ?? {};
@@ -312,6 +373,7 @@ export class Sidebar {
           state,
           this.deps.registry,
           building.id,
+          this.upgrades,
         );
         if (!result.ok) {
           this.flashStatus(result.reason);

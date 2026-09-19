@@ -111,7 +111,7 @@ describe('research queue', () => {
     expect(state.availableResearch).toContain('tier2_market_prep');
   });
 
-  it('applies softCapBonus on complete', () => {
+  it('does not apply softCapBonus (capacity is warehouse-driven)', () => {
     const { state, registry } = baseState();
     state.inventory.amounts.food = 0;
     state.inventory.amounts.wood = 10;
@@ -119,6 +119,6 @@ describe('research queue', () => {
     const cap = state.inventory.softCap;
     startResearch(state, registry, 'tier2_market_prep');
     for (let i = 0; i < 5; i++) advanceResearch(state, registry);
-    expect(state.inventory.softCap).toBe(cap + 20);
+    expect(state.inventory.softCap).toBe(cap);
   });
 });

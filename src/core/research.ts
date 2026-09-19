@@ -55,9 +55,7 @@ function applyCompletion(
       state.availableResearch.push(next);
     }
   }
-  if (def.softCapBonus) {
-    state.inventory.softCap += def.softCapBonus;
-  }
+  // softCapBonus ignored: inventory softCap is the sum of warehouse capacities.
 }
 
 export function advanceResearch(state: GameState, registry: ContentRegistry): void {

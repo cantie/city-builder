@@ -2,7 +2,11 @@ import { add, canAdd } from './inventory';
 import type { ContentRegistry } from './registry';
 import type { GameState, ResourceId } from './types';
 
-/** Soft-cap on total pending resources per building (skip tick if exceeded). */
+/**
+ * Soft-cap on total pending resources per building (skip tick if exceeded).
+ * MVP: fixed at 50; upgrades.json may define pendingCapBonus effects later
+ * but they are not applied here yet — pending stays at 50 regardless of level.
+ */
 export const PENDING_SOFT_CAP = 50;
 
 export type HarvestResult =
@@ -50,9 +54,9 @@ export function produceFarms(state: GameState, registry: ContentRegistry): void 
 }
 
 /**
- * Move all pending resources from a building into city inventory.
- * Clears pending only on success. If inventory cannot accept the full
- * pending transfer, fails with reason and leaves pending unchanged.
+ * Move all pending resources from a building into city inventory (warehouse stock).
+ * Clears pending only on success. softCap must come from warehouses —
+ * with zero warehouses, softCap is 0 and harvest fails clearly.
  */
 export function harvestBuilding(
   state: GameState,
@@ -64,6 +68,10 @@ export function harvestBuilding(
   const pending = building.pending ?? {};
   if (pendingTotal(pending) === 0) {
     return { ok: false, reason: 'nothing to harvest' };
+  }
+
+  if (state.inventory.softCap <= 0) {
+    return { ok: false, reason: 'no warehouse' };
   }
 
   if (!canAdd(state.inventory, pending)) {

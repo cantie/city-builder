@@ -5,7 +5,7 @@ import recipes from '@/data/recipes.json';
 import research from '@/data/research.json';
 
 describe('loadContentFromData', () => {
-  it('loads three building types and tiered research', () => {
+  it('loads building types including warehouse and tiered research', () => {
     const registry = loadContentFromData(buildings, recipes, research);
     expect(registry.buildings.get('main_house')?.footprint).toEqual({
       width: 2,
@@ -19,6 +19,13 @@ describe('loadContentFromData', () => {
       width: 1,
       height: 1,
     });
+    expect(registry.buildings.get('warehouse')?.footprint).toEqual({
+      width: 1,
+      height: 1,
+    });
+    expect(registry.buildings.get('warehouse')?.sprite).toBe(
+      '/assets/buildings/warehouse.png',
+    );
     expect(registry.recipes.has('basic_food')).toBe(true);
     expect(registry.research.size).toBeGreaterThanOrEqual(3);
     const tiers = [...registry.research.values()].map((r) => r.tier);

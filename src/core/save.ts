@@ -12,9 +12,14 @@ import {
   LocalStorageAdapter,
   type StorageAdapter,
 } from './storage';
+import { refreshInventorySoftCap, warehouseCapacityForLevel } from './warehouse';
+import type { UpgradesConfig } from './upgrades';
+import defaultUpgradesJson from '@/data/upgrades.json';
 
 export { MemoryStorage, LocalStorageAdapter };
 export type { StorageAdapter };
+
+const defaultUpgrades = defaultUpgradesJson as UpgradesConfig;
 
 export const SAVE_KEY = 'city-builder-save-v1';
 
@@ -39,10 +44,14 @@ export function serializeGame(state: GameState): SerializedGame {
         id: b.id,
         typeId: b.typeId,
         origin: { ...b.origin },
+        level: b.level ?? 1,
         recipeId: b.recipeId,
       };
       if (b.pending !== undefined || b.recipeId) {
         out.pending = { ...(b.pending ?? {}) };
+      }
+      if (b.capacity !== undefined) {
+        out.capacity = b.capacity;
       }
       return out;
     }),
@@ -63,6 +72,7 @@ export function serializeGame(state: GameState): SerializedGame {
 export function deserializeGame(
   data: unknown,
   registry: ContentRegistry,
+  upgrades: UpgradesConfig = defaultUpgrades,
 ): GameState | null {
   try {
     const parsed =
@@ -84,13 +94,24 @@ export function deserializeGame(
             : b.recipeId
               ? {}
               : undefined;
-        return {
+        const level = typeof b.level === 'number' && b.level >= 1 ? b.level : 1;
+        const out: BuildingInstance = {
           id: b.id,
           typeId: b.typeId,
           origin: { ...b.origin },
+          level,
           recipeId: b.recipeId,
           ...(pending !== undefined ? { pending } : {}),
         };
+        if (b.typeId === 'warehouse') {
+          out.capacity =
+            typeof b.capacity === 'number'
+              ? b.capacity
+              : warehouseCapacityForLevel(level, upgrades);
+        } else if (typeof b.capacity === 'number') {
+          out.capacity = b.capacity;
+        }
+        return out;
       },
     );
     for (const b of buildings) {
@@ -100,7 +121,7 @@ export function deserializeGame(
       grid.occupy(b.id, b.origin, def.footprint);
     }
 
-    return {
+    const state: GameState = {
       tick: s.tick,
       grid,
       buildings,
@@ -114,6 +135,10 @@ export function deserializeGame(
       availableResearch: [...(s.availableResearch ?? [])],
       activeResearch: s.activeResearch ? { ...s.activeResearch } : null,
     };
+
+    // Always recompute softCap from warehouses so saves stay consistent.
+    refreshInventorySoftCap(state, upgrades);
+    return state;
   } catch {
     return null;
   }
@@ -126,8 +151,9 @@ export function saveGame(state: GameState, storage: StorageAdapter): void {
 export function loadGame(
   storage: StorageAdapter,
   registry: ContentRegistry,
+  upgrades: UpgradesConfig = defaultUpgrades,
 ): GameState | null {
   const raw = storage.getItem(SAVE_KEY);
   if (raw == null) return null;
-  return deserializeGame(raw, registry);
+  return deserializeGame(raw, registry, upgrades);
 }

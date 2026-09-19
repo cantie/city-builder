@@ -1,6 +1,11 @@
 export type ResourceId = 'food' | 'wood' | 'stone' | 'coin';
 
-export type BuildingTypeId = 'main_house' | 'farm' | 'research_institute' | 'lumber_yard';
+export type BuildingTypeId =
+  | 'main_house'
+  | 'farm'
+  | 'research_institute'
+  | 'lumber_yard'
+  | 'warehouse';
 
 export interface Cell {
   x: number;
@@ -40,6 +45,7 @@ export interface ResearchDef {
   unlocksBlueprints: BuildingTypeId[];
   unlocksRecipes: string[];
   unlocksResearch: string[];
+  /** @deprecated Capacity is warehouse-driven; field kept for old content. */
   softCapBonus?: number;
 }
 
@@ -47,9 +53,13 @@ export interface BuildingInstance {
   id: string;
   typeId: BuildingTypeId;
   origin: Cell;
+  /** Building level; starts at 1 on place. Cannot exceed main house level (except main house). */
+  level: number;
   recipeId?: string;
   /** Accumulated recipe outputs awaiting manual harvest. */
   pending?: Partial<Record<ResourceId, number>>;
+  /** Warehouse capacity for this instance (from upgrades config by level). */
+  capacity?: number;
 }
 
 export interface InventoryState {
