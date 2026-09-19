@@ -10,9 +10,6 @@ import {
 } from '@/bridge/coords';
 import type { BuildingDef, BuildingInstance } from '@/core/types';
 import type { GameContext } from '../createGame';
-import { ResourceBar } from '../hud/ResourceBar';
-import { BuildMenu } from '../hud/BuildMenu';
-import { ResearchPanel } from '../hud/ResearchPanel';
 
 /** Bottom vertex of a footprint diamond — natural ground contact for sprites. */
 function footprintBottom(originX: number, originY: number, w: number, h: number) {
@@ -28,9 +25,6 @@ export class GameScene extends Phaser.Scene {
   private ghostGfx?: Phaser.GameObjects.Graphics;
   private ghostSprite?: Phaser.GameObjects.Image;
   private toastText?: Phaser.GameObjects.Text;
-  private resourceBar!: ResourceBar;
-  private buildMenu!: BuildMenu;
-  private researchPanel!: ResearchPanel;
   private buildingSprites = new Map<string, Phaser.GameObjects.Image>();
 
   constructor(private ctx: GameContext) {
@@ -67,16 +61,11 @@ export class GameScene extends Phaser.Scene {
 
     this.redrawBuildings();
 
-    this.resourceBar = new ResourceBar(this);
-    this.buildMenu = new BuildMenu(this, this.ctx);
-    this.researchPanel = new ResearchPanel(this, this.ctx);
-    this.resourceBar.refresh(this.ctx.state);
-
     const prev = this.ctx.onStateChange;
     this.ctx.onStateChange = () => {
       prev();
-      this.refreshHud();
       this.redrawBuildings();
+      this.applySelectionTint();
     };
   }
 
@@ -166,15 +155,35 @@ export class GameScene extends Phaser.Scene {
 
   private onUp(p: Phaser.Input.Pointer): void {
     const typeId = this.ctx.getSelectedBlueprint();
-    if (!typeId) return;
     const tile = this.tileFromPointer(p);
-    const result = placeBuilding(this.ctx.state, this.ctx.registry, typeId, tile);
-    if (!result.ok) {
-      this.flash(result.reason);
+
+    // Build mode: place on empty tile; do not place when clicking occupied cell.
+    if (typeId) {
+      const occupant = this.ctx.state.grid.getOccupant(tile);
+      if (occupant) {
+        // Occupied — ignore (ghost shows red); stay in build mode.
+        this.flash('tile occupied');
+        return;
+      }
+      const result = placeBuilding(
+        this.ctx.state,
+        this.ctx.registry,
+        typeId,
+        tile,
+      );
+      if (!result.ok) {
+        this.flash(result.reason);
+        return;
+      }
+      this.redrawBuildings();
+      this.ctx.onStateChange();
       return;
     }
-    this.redrawBuildings();
-    this.ctx.onStateChange();
+
+    // Inspect mode: select building under cursor, or clear on empty tile.
+    const occupantId = this.ctx.state.grid.getOccupant(tile);
+    this.ctx.setSelectedBuildingId(occupantId);
+    this.applySelectionTint();
   }
 
   private flash(msg: string): void {
@@ -195,6 +204,7 @@ export class GameScene extends Phaser.Scene {
     for (const b of this.ctx.state.buildings) {
       this.syncBuildingSprite(b);
     }
+    this.applySelectionTint();
   }
 
   private syncBuildingSprite(b: BuildingInstance): void {
@@ -204,6 +214,7 @@ export class GameScene extends Phaser.Scene {
     let sprite = this.buildingSprites.get(b.id);
     if (!sprite) {
       sprite = this.add.image(0, 0, b.typeId);
+      sprite.setInteractive({ useHandCursor: true });
       this.buildingSprites.set(b.id, sprite);
     } else if (sprite.texture.key !== b.typeId) {
       sprite.setTexture(b.typeId);
@@ -211,9 +222,19 @@ export class GameScene extends Phaser.Scene {
     this.placeBuildingSprite(sprite, def, b.origin);
   }
 
+  private applySelectionTint(): void {
+    const selected = this.ctx.getSelectedBuildingId();
+    for (const [id, sprite] of this.buildingSprites) {
+      if (id === selected) {
+        sprite.setTint(0xaaddff);
+      } else {
+        sprite.clearTint();
+      }
+    }
+  }
+
+  /** Kept for main.ts tick refresh; sidebar owns HUD now. */
   refreshHud(): void {
-    this.resourceBar.refresh(this.ctx.state);
-    this.buildMenu.refresh();
-    this.researchPanel.refresh();
+    this.applySelectionTint();
   }
 }

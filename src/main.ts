@@ -10,7 +10,8 @@ import {
   saveGame,
   SAVE_KEY,
 } from '@/core/save';
-import { createGame } from '@/phaser/createGame';
+import { createGame, type GameContext } from '@/phaser/createGame';
+import { Sidebar } from '@/ui/Sidebar';
 import type { BuildingTypeId } from '@/core/types';
 import type Phaser from 'phaser';
 
@@ -25,7 +26,8 @@ if (!state) {
   state = createNewGame(registry);
 }
 
-let selected: BuildingTypeId | null = 'farm';
+let selected: BuildingTypeId | null = null;
+let selectedBuildingId: string | null = null;
 
 // 2.5D Phaser sprites own rendering — hide unused Three canvas (meshes off).
 const threeRoot = document.getElementById('three-root');
@@ -33,23 +35,70 @@ if (threeRoot) {
   threeRoot.style.display = 'none';
 }
 
-const game = createGame('phaser-root', {
+function refreshScene(): void {
+  const scene = game.scene.getScene('Game') as Phaser.Scene & {
+    redrawBuildings?: () => void;
+    refreshHud?: () => void;
+  };
+  scene.redrawBuildings?.();
+  scene.refreshHud?.();
+}
+
+function notifyUi(): void {
+  sidebar.refresh();
+  refreshScene();
+}
+
+const ctx: GameContext = {
   state,
   registry,
   onStateChange: () => {
     saveGame(state, storage);
+    notifyUi();
   },
   getSelectedBlueprint: () => selected,
   setSelectedBlueprint: (id) => {
     selected = id;
+    notifyUi();
+  },
+  get selectedBuildingId() {
+    return selectedBuildingId;
+  },
+  set selectedBuildingId(id: string | null) {
+    selectedBuildingId = id;
+  },
+  getSelectedBuildingId: () => selectedBuildingId,
+  setSelectedBuildingId: (id) => {
+    selectedBuildingId = id;
+    notifyUi();
+  },
+};
+
+const game = createGame('phaser-root', ctx);
+
+const sidebar = new Sidebar({
+  getState: () => state,
+  registry,
+  getSelectedBlueprint: () => selected,
+  setSelectedBlueprint: (id) => {
+    selected = id;
+    notifyUi();
+  },
+  getSelectedBuildingId: () => selectedBuildingId,
+  setSelectedBuildingId: (id) => {
+    selectedBuildingId = id;
+    notifyUi();
+  },
+  onStateChange: () => {
+    saveGame(state, storage);
+    notifyUi();
   },
 });
+
+sidebar.refresh();
 
 setInterval(() => {
   advanceTick(state, registry);
   saveGame(state, storage);
-  const scene = game.scene.getScene('Game') as Phaser.Scene & {
-    refreshHud?: () => void;
-  };
-  scene.refreshHud?.();
+  notifyUi();
 }, 1000);

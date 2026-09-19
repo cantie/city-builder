@@ -5,17 +5,88 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>City Builder</title>
     <style>
-      html, body, #app { margin: 0; height: 100%; overflow: hidden; background: #1a1a2e; }
-      #app { position: relative; }
-      #phaser-root, #three-root { position: absolute; inset: 0; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1a2e; }
+      #app { display: flex; height: 100vh; width: 100vw; }
+      #sidebar {
+        width: 300px;
+        flex-shrink: 0;
+        overflow: auto;
+        background: #12121c;
+        color: #eee;
+        padding: 12px;
+        box-sizing: border-box;
+        font-family: system-ui, sans-serif;
+        font-size: 13px;
+      }
+      #sidebar h2 {
+        margin: 0 0 8px;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #a0a0c0;
+      }
+      #sidebar section {
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #2a2a3c;
+      }
+      #sidebar button {
+        display: block;
+        width: 100%;
+        margin: 4px 0;
+        padding: 6px 8px;
+        text-align: left;
+        background: #1e1e32;
+        color: #ffe066;
+        border: 1px solid #3a3a55;
+        border-radius: 4px;
+        cursor: pointer;
+        font: inherit;
+      }
+      #sidebar button:hover:not(:disabled) { background: #2a2a48; }
+      #sidebar button:disabled {
+        color: #777;
+        cursor: default;
+        border-color: #2a2a3c;
+      }
+      #sidebar button.active {
+        outline: 1px solid #ffe066;
+        background: #2a2a48;
+      }
+      #sidebar .muted { color: #888; }
+      #sidebar .status { color: #ff8888; min-height: 1.2em; margin-top: 4px; }
+      #stage { flex: 1; position: relative; min-width: 0; }
+      #phaser-root { position: absolute; inset: 0; }
       /* Three mesh path disabled — Phaser 2.5D sprites only */
       #three-root { display: none; pointer-events: none; }
     </style>
   </head>
   <body>
     <div id="app">
-      <div id="phaser-root"></div>
-      <canvas id="three-root"></canvas>
+      <aside id="sidebar">
+        <section id="sidebar-resources">
+          <h2>Resources</h2>
+          <div id="resources-body"></div>
+        </section>
+        <section id="sidebar-build">
+          <h2>Build</h2>
+          <div id="build-body"></div>
+          <button type="button" id="cancel-build" hidden>Cancel build</button>
+        </section>
+        <section id="sidebar-research">
+          <h2>Research</h2>
+          <div id="research-body"></div>
+        </section>
+        <section id="sidebar-selection">
+          <h2>Selection</h2>
+          <div id="selection-body" class="muted">Click a building on the map</div>
+        </section>
+        <div id="sidebar-status" class="status" aria-live="polite"></div>
+      </aside>
+      <div id="stage">
+        <div id="phaser-root"></div>
+        <canvas id="three-root"></canvas>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
