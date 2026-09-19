@@ -1,0 +1,40 @@
+[
+  {
+    "id": "main_house",
+    "label": "Main House",
+    "footprint": { "width": 2, "height": 2 },
+    "demolishable": false,
+    "cost": {},
+    "meshColor": 9127187,
+    "meshHeight": 1.5
+  },
+  {
+    "id": "farm",
+    "label": "Farm",
+    "footprint": { "width": 1, "height": 1 },
+    "demolishable": true,
+    "cost": { "wood": 5, "food": 2 },
+    "meshColor": 2263842,
+    "meshHeight": 0.6,
+    "defaultRecipeId": "basic_food"
+  },
+  {
+    "id": "research_institute",
+    "label": "Research Institute",
+    "footprint": { "width": 1, "height": 1 },
+    "demolishable": true,
+    "cost": { "stone": 8, "wood": 4 },
+    "meshColor": 4286945,
+    "meshHeight": 1.2
+  },
+  {
+    "id": "lumber_yard",
+    "label": "Lumber Yard",
+    "footprint": { "width": 1, "height": 1 },
+    "demolishable": true,
+    "cost": { "wood": 10, "stone": 4 },
+    "meshColor": 139,
+    "meshHeight": 0.9,
+    "defaultRecipeId": "wood_farm"
+  }
+]

@@ -1,0 +1,34 @@
+[
+  {
+    "id": "tier1_wood",
+    "label": "Wood Farming",
+    "tier": 1,
+    "cost": { "food": 8 },
+    "durationTicks": 5,
+    "unlocksBlueprints": ["lumber_yard"],
+    "unlocksRecipes": ["wood_farm"],
+    "unlocksResearch": ["tier2_stone"]
+  },
+  {
+    "id": "tier2_stone",
+    "label": "Stone Farming",
+    "tier": 2,
+    "cost": { "wood": 12, "food": 6 },
+    "durationTicks": 8,
+    "unlocksBlueprints": [],
+    "unlocksRecipes": ["stone_farm"],
+    "unlocksResearch": ["tier3_market_prep"],
+    "softCapBonus": 25
+  },
+  {
+    "id": "tier3_market_prep",
+    "label": "Market Prep",
+    "tier": 3,
+    "cost": { "stone": 15, "wood": 10, "food": 10 },
+    "durationTicks": 12,
+    "unlocksBlueprints": [],
+    "unlocksRecipes": [],
+    "unlocksResearch": [],
+    "softCapBonus": 50
+  }
+]

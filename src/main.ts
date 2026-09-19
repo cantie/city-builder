@@ -1,66 +1,32 @@
-import { createRegistry } from '@/core/buildings';
+import buildingsJson from '@/data/buildings.json';
+import recipesJson from '@/data/recipes.json';
+import researchJson from '@/data/research.json';
+import { loadContentFromData } from '@/core/loadContent';
 import { createNewGame } from '@/core/bootstrap';
+import { advanceTick } from '@/core/tick';
+import {
+  LocalStorageAdapter,
+  loadGame,
+  saveGame,
+  SAVE_KEY,
+} from '@/core/save';
 import { createGame } from '@/phaser/createGame';
 import { BuildingRenderer } from '@/three/BuildingRenderer';
 import { syncThreeCameraFromPhaser } from '@/bridge/cameraSync';
-import type {
-  BuildingDef,
-  BuildingTypeId,
-  RecipeDef,
-  ResearchDef,
-} from '@/core/types';
+import type { BuildingTypeId } from '@/core/types';
 import type Phaser from 'phaser';
 
-const buildings: BuildingDef[] = [
-  {
-    id: 'main_house',
-    label: 'Main House',
-    footprint: { width: 2, height: 2 },
-    demolishable: false,
-    cost: {},
-    meshColor: 0x8b4513,
-    meshHeight: 1.5,
-  },
-  {
-    id: 'farm',
-    label: 'Farm',
-    footprint: { width: 1, height: 1 },
-    demolishable: true,
-    cost: { wood: 5, food: 2 },
-    meshColor: 0x228b22,
-    meshHeight: 0.6,
-    defaultRecipeId: 'basic_food',
-  },
-  {
-    id: 'research_institute',
-    label: 'Research Institute',
-    footprint: { width: 1, height: 1 },
-    demolishable: true,
-    cost: { stone: 8, wood: 4 },
-    meshColor: 0x4169e1,
-    meshHeight: 1.2,
-  },
-];
+const registry = loadContentFromData(buildingsJson, recipesJson, researchJson);
+const storage = new LocalStorageAdapter();
+const hadSave = storage.getItem(SAVE_KEY) != null;
+let state = loadGame(storage, registry);
+if (!state) {
+  if (hadSave) {
+    console.warn('Corrupt save — starting new game');
+  }
+  state = createNewGame(registry);
+}
 
-const recipes: RecipeDef[] = [
-  { id: 'basic_food', label: 'Basic Food', outputs: { food: 1 } },
-];
-
-const research: ResearchDef[] = [
-  {
-    id: 'tier1_wood',
-    label: 'Wood Farming',
-    tier: 1,
-    cost: { food: 5 },
-    durationTicks: 3,
-    unlocksBlueprints: [],
-    unlocksRecipes: ['wood_farm'],
-    unlocksResearch: ['tier2_stone'],
-  },
-];
-
-const registry = createRegistry(buildings, recipes, research);
-const state = createNewGame(registry);
 let selected: BuildingTypeId | null = 'farm';
 
 const canvas = document.getElementById('three-root') as HTMLCanvasElement;
@@ -71,12 +37,25 @@ buildings3d.sync(state.buildings, registry);
 const game = createGame('phaser-root', {
   state,
   registry,
-  onStateChange: () => buildings3d.sync(state.buildings, registry),
+  onStateChange: () => {
+    buildings3d.sync(state.buildings, registry);
+    saveGame(state, storage);
+  },
   getSelectedBlueprint: () => selected,
   setSelectedBlueprint: (id) => {
     selected = id;
   },
 });
+
+setInterval(() => {
+  advanceTick(state, registry);
+  saveGame(state, storage);
+  buildings3d.sync(state.buildings, registry);
+  const scene = game.scene.getScene('Game') as Phaser.Scene & {
+    refreshHud?: () => void;
+  };
+  scene.refreshHud?.();
+}, 1000);
 
 function frame() {
   const scene = game.scene.getScene('Game') as Phaser.Scene | null;

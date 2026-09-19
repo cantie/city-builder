@@ -1,0 +1,5 @@
+[
+  { "id": "basic_food", "label": "Basic Food", "outputs": { "food": 1 } },
+  { "id": "wood_farm", "label": "Wood Lot", "outputs": { "wood": 1 } },
+  { "id": "stone_farm", "label": "Quarry Plot", "outputs": { "stone": 1 } }
+]
