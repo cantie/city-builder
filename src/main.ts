@@ -1,12 +1,15 @@
 import { createRegistry } from '@/core/buildings';
 import { createNewGame } from '@/core/bootstrap';
 import { createGame } from '@/phaser/createGame';
+import { BuildingRenderer } from '@/three/BuildingRenderer';
+import { syncThreeCameraFromPhaser } from '@/bridge/cameraSync';
 import type {
   BuildingDef,
   BuildingTypeId,
   RecipeDef,
   ResearchDef,
 } from '@/core/types';
+import type Phaser from 'phaser';
 
 const buildings: BuildingDef[] = [
   {
@@ -60,12 +63,37 @@ const registry = createRegistry(buildings, recipes, research);
 const state = createNewGame(registry);
 let selected: BuildingTypeId | null = 'farm';
 
-createGame('phaser-root', {
+const canvas = document.getElementById('three-root') as HTMLCanvasElement;
+const buildings3d = new BuildingRenderer(canvas);
+buildings3d.setSize(640, 640);
+buildings3d.sync(state.buildings, registry);
+
+const game = createGame('phaser-root', {
   state,
   registry,
-  onStateChange: () => {},
+  onStateChange: () => buildings3d.sync(state.buildings, registry),
   getSelectedBlueprint: () => selected,
   setSelectedBlueprint: (id) => {
     selected = id;
   },
 });
+
+function frame() {
+  const scene = game.scene.getScene('Game') as Phaser.Scene | null;
+  if (scene?.cameras?.main) {
+    const cam = scene.cameras.main;
+    syncThreeCameraFromPhaser(
+      {
+        scrollX: cam.scrollX,
+        scrollY: cam.scrollY,
+        zoom: cam.zoom,
+        width: cam.width,
+        height: cam.height,
+      },
+      buildings3d.getCamera(),
+    );
+  }
+  buildings3d.render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
