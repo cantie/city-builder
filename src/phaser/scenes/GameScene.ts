@@ -3,10 +3,16 @@ import { GRID_HEIGHT, GRID_WIDTH } from '@/core/grid';
 import { placeBuilding } from '@/core/buildings';
 import { TILE_SIZE } from '@/bridge/coords';
 import type { GameContext } from '../createGame';
+import { ResourceBar } from '../hud/ResourceBar';
+import { BuildMenu } from '../hud/BuildMenu';
+import { ResearchPanel } from '../hud/ResearchPanel';
 
 export class GameScene extends Phaser.Scene {
   private ghost?: Phaser.GameObjects.Rectangle;
   private toastText?: Phaser.GameObjects.Text;
+  private resourceBar!: ResourceBar;
+  private buildMenu!: BuildMenu;
+  private researchPanel!: ResearchPanel;
 
   constructor(private ctx: GameContext) {
     super('Game');
@@ -47,6 +53,18 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onUp(p));
 
     this.redrawBuildings();
+
+    this.resourceBar = new ResourceBar(this);
+    this.buildMenu = new BuildMenu(this, this.ctx);
+    this.researchPanel = new ResearchPanel(this, this.ctx);
+    this.resourceBar.refresh(this.ctx.state);
+
+    const prev = this.ctx.onStateChange;
+    this.ctx.onStateChange = () => {
+      prev();
+      this.refreshHud();
+      this.redrawBuildings();
+    };
   }
 
   private tileFromPointer(p: Phaser.Input.Pointer): { x: number; y: number } {
@@ -118,6 +136,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   refreshHud(): void {
-    // Filled in Task 11
+    this.resourceBar.refresh(this.ctx.state);
+    this.buildMenu.refresh();
+    this.researchPanel.refresh();
   }
 }
