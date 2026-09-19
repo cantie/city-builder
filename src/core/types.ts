@@ -20,6 +20,8 @@ export interface BuildingDef {
   cost: Partial<Record<ResourceId, number>>;
   meshColor: number;
   meshHeight: number;
+  /** Public URL path to isometric sprite (Vite serves public/ at /). */
+  sprite?: string;
   defaultRecipeId?: string;
 }
 

@@ -8,7 +8,8 @@
       html, body, #app { margin: 0; height: 100%; overflow: hidden; background: #1a1a2e; }
       #app { position: relative; }
       #phaser-root, #three-root { position: absolute; inset: 0; }
-      #three-root { pointer-events: none; }
+      /* Three mesh path disabled — Phaser 2.5D sprites only */
+      #three-root { display: none; pointer-events: none; }
     </style>
   </head>
   <body>

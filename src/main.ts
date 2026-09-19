@@ -11,8 +11,6 @@ import {
   SAVE_KEY,
 } from '@/core/save';
 import { createGame } from '@/phaser/createGame';
-import { BuildingRenderer } from '@/three/BuildingRenderer';
-import { syncThreeCameraFromPhaser } from '@/bridge/cameraSync';
 import type { BuildingTypeId } from '@/core/types';
 import type Phaser from 'phaser';
 
@@ -29,16 +27,16 @@ if (!state) {
 
 let selected: BuildingTypeId | null = 'farm';
 
-const canvas = document.getElementById('three-root') as HTMLCanvasElement;
-const buildings3d = new BuildingRenderer(canvas);
-buildings3d.setSize(640, 640);
-buildings3d.sync(state.buildings, registry);
+// 2.5D Phaser sprites own rendering — hide unused Three canvas (meshes off).
+const threeRoot = document.getElementById('three-root');
+if (threeRoot) {
+  threeRoot.style.display = 'none';
+}
 
 const game = createGame('phaser-root', {
   state,
   registry,
   onStateChange: () => {
-    buildings3d.sync(state.buildings, registry);
     saveGame(state, storage);
   },
   getSelectedBlueprint: () => selected,
@@ -50,29 +48,8 @@ const game = createGame('phaser-root', {
 setInterval(() => {
   advanceTick(state, registry);
   saveGame(state, storage);
-  buildings3d.sync(state.buildings, registry);
   const scene = game.scene.getScene('Game') as Phaser.Scene & {
     refreshHud?: () => void;
   };
   scene.refreshHud?.();
 }, 1000);
-
-function frame() {
-  const scene = game.scene.getScene('Game') as Phaser.Scene | null;
-  if (scene?.cameras?.main) {
-    const cam = scene.cameras.main;
-    syncThreeCameraFromPhaser(
-      {
-        scrollX: cam.scrollX,
-        scrollY: cam.scrollY,
-        zoom: cam.zoom,
-        width: cam.width,
-        height: cam.height,
-      },
-      buildings3d.getCamera(),
-    );
-  }
-  buildings3d.render();
-  requestAnimationFrame(frame);
-}
-requestAnimationFrame(frame);

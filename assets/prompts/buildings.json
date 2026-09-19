@@ -1,0 +1,37 @@
+{
+  "style": "cohesive cozy pixel-art isometric city builder, soft lighting, clean outline, transparent background, single building centered, no UI, no text, no characters",
+  "view": "low top-down",
+  "image_size": { "width": 128, "height": 128 },
+  "buildings": [
+    {
+      "id": "main_house",
+      "file": "main_house.png",
+      "prompt": "isometric pixel art town hall / main house, warm wooden walls, red tiled roof, small chimney, front door, cozy fantasy village style, 2x2 footprint feel, transparent background"
+    },
+    {
+      "id": "farm",
+      "file": "farm.png",
+      "prompt": "isometric pixel art small farm plot with wooden fence, tilled soil and green crops, tiny wooden shed, cozy village style, 1x1 footprint, transparent background"
+    },
+    {
+      "id": "research_institute",
+      "file": "research_institute.png",
+      "prompt": "isometric pixel art research institute, stone and wood tower with blue crystal or telescope on roof, window glow, scholarly fantasy village style, 1x1 footprint, transparent background"
+    },
+    {
+      "id": "lumber_yard",
+      "file": "lumber_yard.png",
+      "prompt": "isometric pixel art lumber yard, stacked wood logs, cutting block, small timber shed with saw, earthy tones, cozy village style, 1x1 footprint, transparent background"
+    }
+  ],
+  "tiles": [
+    {
+      "id": "grass",
+      "file": "grass.png",
+      "prompt": "lush green grass on dirt, soft pixel shading, seamless isometric ground tile",
+      "image_size": { "width": 32, "height": 32 },
+      "isometric_tile_shape": "thick tile",
+      "isometric_tile_size": 32
+    }
+  ]
+}

@@ -2,13 +2,17 @@ import Phaser from 'phaser';
 import type { GameContext } from '../createGame';
 
 export class BootScene extends Phaser.Scene {
-  // ctx reserved for Task 12 content wiring; kept for constructor parity with GameScene
-  constructor(_ctx: GameContext) {
+  constructor(private ctx: GameContext) {
     super('Boot');
   }
 
   preload(): void {
-    // Content comes from ctx.registry (JSON wired in Task 12).
+    this.load.image('grass', '/assets/tiles/grass.png');
+    for (const def of this.ctx.registry.buildings.values()) {
+      const path = def.sprite ?? `/assets/buildings/${def.id}.png`;
+      const url = path.startsWith('/') ? path : `/${path}`;
+      this.load.image(def.id, url);
+    }
   }
 
   create(): void {

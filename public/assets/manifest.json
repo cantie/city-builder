@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-09-19T12:59:48Z",
+  "view": "low top-down",
+  "buildings": {
+    "main_house": "assets/buildings/main_house.png",
+    "farm": "assets/buildings/farm.png",
+    "research_institute": "assets/buildings/research_institute.png",
+    "lumber_yard": "assets/buildings/lumber_yard.png"
+  },
+  "tiles": {
+    "grass": "assets/tiles/grass.png"
+  }
+}
