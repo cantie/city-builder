@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { Grid } from '@/core/grid';
 import { createInventory } from '@/core/inventory';
 import { createRegistry, placeBuilding } from '@/core/buildings';
-import { produceFarms, advanceTick } from '@/core/farm';
+import { produceFarms } from '@/core/farm';
+import { advanceTick } from '@/core/tick';
 import type { BuildingDef, GameState, RecipeDef } from '@/core/types';
 
 const buildings: BuildingDef[] = [

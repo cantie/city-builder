@@ -11,8 +11,3 @@ export function produceFarms(state: GameState, registry: ContentRegistry): void 
     add(state.inventory, recipe.outputs);
   }
 }
-
-export function advanceTick(state: GameState, registry: ContentRegistry): void {
-  produceFarms(state, registry);
-  state.tick += 1;
-}
