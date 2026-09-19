@@ -7,7 +7,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image('grass', '/assets/tiles/grass.png');
+    this.load.image('empty', '/assets/tiles/empty.png');
     for (const def of this.ctx.registry.buildings.values()) {
       const path = def.sprite ?? `/assets/buildings/${def.id}.png`;
       const url = path.startsWith('/') ? path : `/${path}`;

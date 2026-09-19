@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-19T12:59:48Z",
+  "generated_at": "2026-09-19T13:19:56Z",
   "view": "low top-down",
   "buildings": {
     "main_house": "assets/buildings/main_house.png",
@@ -8,6 +8,6 @@
     "lumber_yard": "assets/buildings/lumber_yard.png"
   },
   "tiles": {
-    "grass": "assets/tiles/grass.png"
+    "empty": "assets/tiles/empty.png"
   }
 }

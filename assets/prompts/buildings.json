@@ -29,9 +29,9 @@
   ],
   "tiles": [
     {
-      "id": "grass",
-      "file": "grass.png",
-      "prompt": "flat seamless isometric grass ground tile only, short uniform green grass, smooth soft shading, clean single color outline, NO trees, NO bushes, NO rocks, NO flowers, NO props, empty open field surface",
+      "id": "empty",
+      "file": "empty.png",
+      "prompt": "empty bare isometric ground tile, flat plain dirt or stone slab surface, neutral beige-brown, smooth minimal shading, clean single color outline, seamless map tile, NO grass, NO plants, NO trees, NO bushes, NO rocks, NO flowers, NO props, NO decoration, blank empty terrain",
       "image_size": {
         "width": 32,
         "height": 32

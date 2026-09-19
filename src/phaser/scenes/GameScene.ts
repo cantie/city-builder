@@ -80,17 +80,17 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  /** Stamp grass isometric tile sprites across the 20×20 grid. */
+  /** Stamp empty isometric tile sprites across the 20×20 grid. */
   private drawGrassTiles(): void {
     for (let ty = 0; ty < GRID_HEIGHT; ty++) {
       for (let tx = 0; tx < GRID_WIDTH; tx++) {
         // Bottom tip of the cell diamond — matches PixelLab thick-tile art.
         const bottom = tileToScreen(tx + 1, ty + 1);
-        const grass = this.add.image(bottom.x, bottom.y, 'grass');
-        grass.setOrigin(0.5, 1);
+        const empty = this.add.image(bottom.x, bottom.y, 'empty');
+        empty.setOrigin(0.5, 1);
         // Scale 32→64 so tile width matches ISO_TILE_W.
-        grass.setScale(ISO_TILE_W / grass.width);
-        grass.setDepth(tx + ty);
+        empty.setScale(ISO_TILE_W / empty.width);
+        empty.setDepth(tx + ty);
       }
     }
   }
@@ -117,7 +117,7 @@ export class GameScene extends Phaser.Scene {
     const targetW = spriteDisplayWidth(def.footprint);
     // Use frame width so repeated redraws do not compound scale.
     image.setScale(targetW / image.frame.width);
-    // Sort among buildings by origin; offset keeps them above grass (tx+ty).
+    // Sort among buildings by origin; offset keeps them above empty tiles (tx+ty).
     image.setDepth(1000 + origin.x + origin.y);
   }
 
