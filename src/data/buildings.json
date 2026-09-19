@@ -2,7 +2,7 @@
   {
     "id": "main_house",
     "label": "Main House",
-    "footprint": { "width": 2, "height": 2 },
+    "footprint": { "width": 3, "height": 3 },
     "demolishable": false,
     "cost": {},
     "meshColor": 9127187,
@@ -12,7 +12,7 @@
   {
     "id": "farm",
     "label": "Farm",
-    "footprint": { "width": 1, "height": 1 },
+    "footprint": { "width": 2, "height": 2 },
     "demolishable": true,
     "cost": { "wood": 5, "food": 2 },
     "meshColor": 2263842,
@@ -23,7 +23,7 @@
   {
     "id": "research_institute",
     "label": "Research Institute",
-    "footprint": { "width": 1, "height": 1 },
+    "footprint": { "width": 3, "height": 3 },
     "demolishable": true,
     "cost": { "stone": 8, "wood": 4 },
     "meshColor": 4286945,
@@ -33,7 +33,7 @@
   {
     "id": "lumber_yard",
     "label": "Lumber Yard",
-    "footprint": { "width": 1, "height": 1 },
+    "footprint": { "width": 2, "height": 2 },
     "demolishable": true,
     "cost": { "wood": 10, "stone": 4 },
     "meshColor": 139,
@@ -42,9 +42,20 @@
     "sprite": "/assets/buildings/lumber_yard.png"
   },
   {
+    "id": "quarry",
+    "label": "Stone Quarry",
+    "footprint": { "width": 2, "height": 2 },
+    "demolishable": true,
+    "cost": { "wood": 10, "food": 4 },
+    "meshColor": 8947848,
+    "meshHeight": 0.8,
+    "defaultRecipeId": "stone_farm",
+    "sprite": "/assets/buildings/quarry.png"
+  },
+  {
     "id": "warehouse",
     "label": "Warehouse",
-    "footprint": { "width": 1, "height": 1 },
+    "footprint": { "width": 3, "height": 3 },
     "demolishable": true,
     "cost": { "wood": 8, "stone": 5 },
     "meshColor": 9139248,

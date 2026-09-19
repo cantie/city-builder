@@ -4,5 +4,9 @@ dist/
 *.tsbuildinfo
 .env
 .env.*
+!.env.example
 *.pem
 secrets/
+data/players/*.json
+data/players/*.tmp
+data/players/**/*.png

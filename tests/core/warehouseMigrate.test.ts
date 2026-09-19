@@ -11,7 +11,7 @@ const buildings: BuildingDef[] = [
   {
     id: 'main_house',
     label: 'MH',
-    footprint: { width: 2, height: 2 },
+    footprint: { width: 3, height: 3 },
     demolishable: false,
     cost: {},
     meshColor: 1,
@@ -20,7 +20,7 @@ const buildings: BuildingDef[] = [
   {
     id: 'warehouse',
     label: 'WH',
-    footprint: { width: 1, height: 1 },
+    footprint: { width: 3, height: 3 },
     demolishable: true,
     cost: { wood: 5 },
     meshColor: 1,
@@ -44,7 +44,7 @@ describe('ensureWarehouseMigrated', () => {
       activeResearch: null,
     };
     // place main only via occupy manually
-    state.grid.occupy('main-1', { x: 9, y: 9 }, { width: 2, height: 2 });
+    state.grid.occupy('main-1', { x: 9, y: 9 }, { width: 3, height: 3 });
     state.buildings.push({
       id: 'main-1',
       typeId: 'main_house',

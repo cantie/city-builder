@@ -13,6 +13,14 @@ export interface GameContext {
   selectedBuildingId: string | null;
   getSelectedBuildingId: () => string | null;
   setSelectedBuildingId: (id: string | null) => void;
+  submitPlace: (
+    typeId: BuildingTypeId,
+    origin: { x: number; y: number },
+  ) => Promise<{ ok: boolean; reason?: string }>;
+  submitMove: (
+    buildingId: string,
+    origin: { x: number; y: number },
+  ) => Promise<{ ok: boolean; reason?: string }>;
 }
 
 export function createGame(parent: string, ctx: GameContext): Phaser.Game {

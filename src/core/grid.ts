@@ -1,7 +1,7 @@
 import type { Cell, Footprint } from './types';
 
-export const GRID_WIDTH = 20;
-export const GRID_HEIGHT = 20;
+export const GRID_WIDTH = 50;
+export const GRID_HEIGHT = 50;
 
 export class Grid {
   private cells: (string | null)[][];
@@ -22,12 +22,17 @@ export class Grid {
     return out;
   }
 
-  canPlace(origin: Cell, footprint: Footprint): boolean {
+  canPlace(
+    origin: Cell,
+    footprint: Footprint,
+    ignoreBuildingId?: string | null,
+  ): boolean {
     for (const c of this.cellsFor(origin, footprint)) {
       if (c.x < 0 || c.y < 0 || c.x >= GRID_WIDTH || c.y >= GRID_HEIGHT) {
         return false;
       }
-      if (this.cells[c.y][c.x] !== null) return false;
+      const occupant = this.cells[c.y][c.x];
+      if (occupant !== null && occupant !== ignoreBuildingId) return false;
     }
     return true;
   }
@@ -54,4 +59,22 @@ export class Grid {
     }
     return this.cells[cell.y][cell.x];
   }
+}
+
+/** First cell where `footprint` fits, preferring `preferred` then row-major scan. */
+export function findPlaceableOrigin(
+  grid: Grid,
+  footprint: Footprint,
+  preferred: Cell[] = [],
+): Cell | null {
+  const scan: Cell[] = [];
+  for (let y = 0; y < GRID_HEIGHT; y++) {
+    for (let x = 0; x < GRID_WIDTH; x++) {
+      scan.push({ x, y });
+    }
+  }
+  for (const origin of [...preferred, ...scan]) {
+    if (grid.canPlace(origin, footprint)) return origin;
+  }
+  return null;
 }

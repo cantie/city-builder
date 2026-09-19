@@ -27,6 +27,11 @@
       "prompt": "isometric pixel art lumber yard, stacked wood logs, cutting block, small timber shed with saw, earthy tones, cozy village style, 1x1 footprint, transparent background"
     },
     {
+      "id": "quarry",
+      "file": "quarry.png",
+      "prompt": "isometric pixel art stone quarry, grey rock pit, stacked stone blocks, wooden crane or pickaxe, dusty earthy tones, cozy village style, 1x1 footprint, transparent background"
+    },
+    {
       "id": "warehouse",
       "file": "warehouse.png",
       "prompt": "isometric pixel art warehouse, wooden storage barn with large doors, stacked crates and barrels outside, earthy brown tones, cozy fantasy village style, 1x1 footprint, transparent background"

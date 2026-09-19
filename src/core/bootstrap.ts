@@ -3,14 +3,18 @@ import { createInventory } from './inventory';
 import { Grid, GRID_HEIGHT, GRID_WIDTH } from './grid';
 import { refreshInventorySoftCap } from './warehouse';
 import type { UpgradesConfig } from './upgrades';
-import type { GameState } from './types';
+import type { BuildingTypeId, GameState } from './types';
+import { saveGame } from './save';
+import type { StorageAdapter } from './storage';
 import defaultUpgradesJson from '@/data/upgrades.json';
 
 const defaultUpgrades = defaultUpgradesJson as UpgradesConfig;
 
+export const MAIN_HOUSE_ORIGIN = { x: 23, y: 23 };
+export const WAREHOUSE_ORIGIN = { x: 20, y: 23 };
+
 /**
- * New game: main house at (9,9), warehouse adjacent so harvest works out of the box.
- * softCap starts at 0 and is set from the placed warehouse (capacity 100 at level 1).
+ * New game: main house 3×3 near map center, warehouse 3×3 adjacent on the west.
  */
 export function createNewGame(
   registry: ContentRegistry,
@@ -39,13 +43,14 @@ export function createNewGame(
       return def.tier === 1;
     }),
     activeResearch: null,
+    customBuildings: [],
   };
 
   const main = placeBuilding(
     state,
     registry,
     'main_house',
-    { x: 9, y: 9 },
+    MAIN_HOUSE_ORIGIN,
     () => 'main-1',
     upgrades,
   );
@@ -53,14 +58,15 @@ export function createNewGame(
     throw new Error(`failed to spawn main house: ${main.reason}`);
   }
 
-  // Adjacent to main house 2×2 at (9,9)–(10,10): cell (8,9) is free.
+  // Main 3×3 at (23,23)–(25,25); warehouse 3×3 at (20,23)–(22,25).
   const wh = placeBuilding(
     state,
     registry,
     'warehouse',
-    { x: 8, y: 9 },
+    WAREHOUSE_ORIGIN,
     () => 'warehouse-1',
     upgrades,
+    { free: true },
   );
   if (!wh.ok) {
     throw new Error(`failed to spawn warehouse: ${wh.reason}`);
@@ -90,12 +96,12 @@ export function ensureWarehouseMigrated(
   }
 
   const preferred = [
-    { x: 8, y: 9 },
-    { x: 8, y: 8 },
-    { x: 8, y: 10 },
-    { x: 11, y: 9 },
-    { x: 11, y: 8 },
-    { x: 7, y: 9 },
+    WAREHOUSE_ORIGIN,
+    { x: 23, y: 20 },
+    { x: 26, y: 23 },
+    { x: 23, y: 26 },
+    { x: 20, y: 20 },
+    { x: 26, y: 20 },
   ];
   const scan = Array.from({ length: GRID_HEIGHT * GRID_WIDTH }, (_, i) => ({
     x: i % GRID_WIDTH,
@@ -118,4 +124,27 @@ export function ensureWarehouseMigrated(
     }
   }
   return changed;
+}
+
+export interface NewGameSession {
+  state: GameState;
+  selected: BuildingTypeId | null;
+  selectedBuildingId: string | null;
+}
+
+/**
+ * Replace the live session and persisted save with a fresh game.
+ * In-place (no reload) so a pending autosave cannot resurrect the old save.
+ */
+export function resetToNewGame(
+  session: NewGameSession,
+  storage: StorageAdapter,
+  registry: ContentRegistry,
+  upgrades: UpgradesConfig = defaultUpgrades,
+): GameState {
+  session.state = createNewGame(registry, upgrades);
+  session.selected = null;
+  session.selectedBuildingId = null;
+  saveGame(session.state, storage);
+  return session.state;
 }

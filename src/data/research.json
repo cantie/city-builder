@@ -15,7 +15,7 @@
     "tier": 2,
     "cost": { "wood": 12, "food": 6 },
     "durationTicks": 8,
-    "unlocksBlueprints": [],
+    "unlocksBlueprints": ["quarry"],
     "unlocksRecipes": ["stone_farm"],
     "unlocksResearch": ["tier3_market_prep"],
     "softCapBonus": 25

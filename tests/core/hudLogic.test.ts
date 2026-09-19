@@ -58,7 +58,7 @@ function state(): GameState {
     grid: new Grid(),
     buildings: [],
     inventory: createInventory(100, { food: 0, wood: 0, stone: 0, coin: 0 }),
-    unlockedBlueprints: ['main_house', 'farm'],
+    unlockedBlueprints: ['main_house', 'farm', 'research_institute'],
     unlockedRecipes: ['basic_food'],
     completedResearch: [],
     availableResearch: ['r1'],
@@ -69,13 +69,30 @@ function state(): GameState {
 describe('hudLogic', () => {
   it('lists only unlocked placeable blueprints (no main house)', () => {
     const registry = createRegistry(buildings, [], researchDefs);
-    const opts = unlockedBuildOptions(state(), registry);
+    const s = state();
+    s.unlockedBlueprints = ['main_house', 'farm'];
+    const opts = unlockedBuildOptions(s, registry);
     expect(opts.map((o) => o.id)).toEqual(['farm']);
+  });
+
+  it('disables research start without a research institute', () => {
+    const registry = createRegistry(buildings, [], researchDefs);
+    const s = state();
+    s.inventory.amounts.food = 50;
+    expect(researchStartDisabledReason(s, registry, 'r1')).toMatch(/institute/i);
   });
 
   it('disables research start when cannot afford or queue busy', () => {
     const registry = createRegistry(buildings, [], researchDefs);
     const s = state();
+    s.buildings = [
+      {
+        id: 'ri-1',
+        typeId: 'research_institute',
+        origin: { x: 0, y: 0 },
+        level: 1,
+      },
+    ];
     expect(researchStartDisabledReason(s, registry, 'r1')).toMatch(/afford/i);
     s.inventory.amounts.food = 50;
     s.activeResearch = { researchId: 'r1', remainingTicks: 1 };

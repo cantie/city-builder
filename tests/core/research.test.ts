@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Grid } from '@/core/grid';
 import { createInventory } from '@/core/inventory';
-import { createRegistry } from '@/core/buildings';
-import { startResearch, advanceResearch } from '@/core/research';
+import { createRegistry, placeBuilding } from '@/core/buildings';
+import { startResearch, advanceResearch, syncCompletedResearchUnlocks } from '@/core/research';
 import type { BuildingDef, GameState, RecipeDef, ResearchDef } from '@/core/types';
 
 const buildings: BuildingDef[] = [
@@ -81,6 +81,7 @@ function baseState(): {
     availableResearch: ['tier1_wood'],
     activeResearch: null,
   };
+  placeBuilding(state, registry, 'research_institute', { x: 0, y: 0 }, () => 'ri-1');
   return { state, registry };
 }
 
@@ -109,6 +110,27 @@ describe('research queue', () => {
     expect(state.completedResearch).toContain('tier1_wood');
     expect(state.unlockedRecipes).toContain('wood_farm');
     expect(state.availableResearch).toContain('tier2_market_prep');
+  });
+
+  it('rejects start when no research institute is built', () => {
+    const { state, registry } = baseState();
+    state.buildings = state.buildings.filter(
+      (b) => b.typeId !== 'research_institute',
+    );
+    const result = startResearch(state, registry, 'tier1_wood');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/institute/i);
+    expect(state.activeResearch).toBeNull();
+    expect(state.inventory.amounts.food).toBe(10);
+  });
+
+  it('syncCompletedResearchUnlocks grants missing unlocks from finished nodes', () => {
+    const { state, registry } = baseState();
+    state.completedResearch = ['tier1_wood'];
+    state.unlockedRecipes = ['basic_food'];
+    const changed = syncCompletedResearchUnlocks(state, registry);
+    expect(changed).toBe(true);
+    expect(state.unlockedRecipes).toContain('wood_farm');
   });
 
   it('does not apply softCapBonus (capacity is warehouse-driven)', () => {

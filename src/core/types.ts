@@ -1,11 +1,6 @@
 export type ResourceId = 'food' | 'wood' | 'stone' | 'coin';
 
-export type BuildingTypeId =
-  | 'main_house'
-  | 'farm'
-  | 'research_institute'
-  | 'lumber_yard'
-  | 'warehouse';
+export type BuildingTypeId = string;
 
 export interface Cell {
   x: number;
@@ -67,6 +62,14 @@ export interface InventoryState {
   softCap: number;
 }
 
+export interface CustomBuilding {
+  id: BuildingTypeId;
+  label: string;
+  prompt: string;
+  footprint: Footprint;
+  sprite: string;
+}
+
 export interface ActiveResearch {
   researchId: string;
   remainingTicks: number;
@@ -82,4 +85,5 @@ export interface GameState {
   completedResearch: string[];
   availableResearch: string[];
   activeResearch: ActiveResearch | null;
+  customBuildings?: CustomBuilding[];
 }

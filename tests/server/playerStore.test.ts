@@ -1,0 +1,140 @@
+import { describe, it, expect } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { loadContentFromData } from '@/core/loadContent';
+import buildings from '@/data/buildings.json';
+import recipes from '@/data/recipes.json';
+import research from '@/data/research.json';
+import upgradesJson from '@/data/upgrades.json';
+import type { UpgradesConfig } from '@/core/upgrades';
+import { MAX_CATCH_UP_TICKS, TICK_INTERVAL_MS } from '@/core/catchUp';
+import { PlayerStore } from '../../server/playerStore';
+
+const registry = loadContentFromData(buildings, recipes, research);
+const upgrades = upgradesJson as UpgradesConfig;
+
+describe('PlayerStore', () => {
+  it('creates a named save and persists a placed farm', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-save-'));
+    try {
+      const store = new PlayerStore(dir, registry, upgrades, () => 1_000);
+      const login = await store.login('Ada');
+      expect(login.ok).toBe(true);
+      expect(login.game.buildings.some((b) => b.typeId === 'main_house')).toBe(
+        true,
+      );
+      const placed = await store.apply('Ada', {
+        op: 'place',
+        typeId: 'farm',
+        x: 0,
+        y: 0,
+      });
+      expect(placed.ok).toBe(true);
+      if (placed.ok) {
+        expect(placed.game.buildings.some((b) => b.typeId === 'farm')).toBe(
+          true,
+        );
+      }
+      const again = new PlayerStore(dir, registry, upgrades, () => 1_000);
+      const loaded = await again.login('ada');
+      expect(loaded.game.buildings.some((b) => b.typeId === 'farm')).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('catches up ticks from lastTickAt on login', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-tick-'));
+    try {
+      let now = 5_000;
+      const store = new PlayerStore(dir, registry, upgrades, () => now);
+      await store.login('bob');
+      now = 5_000 + TICK_INTERVAL_MS * 3;
+      const snap = await store.snapshot('bob');
+      expect(snap.game.tick).toBe(3);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('does not exceed MAX_CATCH_UP_TICKS', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-cap-'));
+    try {
+      let now = 0;
+      const store = new PlayerStore(dir, registry, upgrades, () => now);
+      await store.login('cap');
+      now = TICK_INTERVAL_MS * (MAX_CATCH_UP_TICKS + 80);
+      const snap = await store.snapshot('cap');
+      expect(snap.game.tick).toBe(MAX_CATCH_UP_TICKS);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  const TINY_PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  it('invents a custom building after PixelLab and does not spend if generate fails', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-invent-'));
+    try {
+      let calls = 0;
+      const store = new PlayerStore(
+        dir,
+        registry,
+        upgrades,
+        () => 1_000,
+        async () => {
+          calls += 1;
+          if (calls === 1) throw new Error('pixellab failed');
+          return TINY_PNG;
+        },
+      );
+      await store.login('Ada');
+      await store.apply('Ada', {
+        op: 'place',
+        typeId: 'research_institute',
+        x: 0,
+        y: 0,
+      });
+      const woodBefore = (await store.snapshot('Ada')).game.inventory.amounts.wood;
+      const failed = await store.invent('Ada', 'crystal bakery', 2, 2);
+      expect(failed.ok).toBe(false);
+      expect((await store.snapshot('Ada')).game.inventory.amounts.wood).toBe(
+        woodBefore,
+      );
+
+      const ok = await store.invent('Ada', 'crystal bakery', 2, 2);
+      expect(ok.ok).toBe(true);
+      expect(ok.game.customBuildings?.some((b) => b.id === 'custom-1')).toBe(
+        true,
+      );
+      expect(ok.game.unlockedBlueprints).toContain('custom-1');
+      const png = await store.readSprite('Ada', 'custom-1');
+      expect(png?.equals(TINY_PNG)).toBe(true);
+
+      const placed = await store.apply('Ada', {
+        op: 'place',
+        typeId: 'custom-1',
+        x: 10,
+        y: 10,
+      });
+      expect(placed.ok).toBe(true);
+
+      const forgotten = await store.apply('Ada', {
+        op: 'forget-building',
+        typeId: 'custom-1',
+      });
+      expect(forgotten.ok).toBe(true);
+      expect(forgotten.game.customBuildings ?? []).toHaveLength(0);
+      expect(
+        forgotten.game.buildings.some((b) => b.typeId === 'custom-1'),
+      ).toBe(false);
+      expect(await store.readSprite('Ada', 'custom-1')).toBeNull();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

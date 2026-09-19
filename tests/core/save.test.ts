@@ -83,7 +83,7 @@ function sampleState(): {
     grid: new Grid(),
     buildings: [],
     inventory: createInventory(0, { food: 3, wood: 4, stone: 1, coin: 0 }),
-    unlockedBlueprints: ['main_house', 'farm', 'warehouse'],
+    unlockedBlueprints: ['main_house', 'farm', 'warehouse', 'research_institute'],
     unlockedRecipes: ['basic_food'],
     completedResearch: [],
     availableResearch: ['r1'],
@@ -111,6 +111,14 @@ function sampleState(): {
     'farm',
     { x: 1, y: 1 },
     () => 'farm-1',
+    upgrades,
+  );
+  placeBuilding(
+    state,
+    registry,
+    'research_institute',
+    { x: 0, y: 0 },
+    () => 'ri-1',
     upgrades,
   );
   startResearch(state, registry, 'r1');
@@ -174,6 +182,49 @@ describe('save/load', () => {
     expect(loaded!.buildings[0].pending).toEqual({});
     expect(loaded!.buildings[0].level).toBe(1);
     expect(loaded!.inventory.softCap).toBe(0);
+  });
+
+  it('relocates a 2x2-era warehouse that no longer fits 3x3 at its origin', () => {
+    const registry = createRegistry(
+      buildings.map((b) =>
+        b.id === 'warehouse'
+          ? { ...b, footprint: { width: 3, height: 3 } }
+          : b,
+      ),
+      recipes,
+      researchDefs,
+    );
+    const raw = {
+      version: 1 as const,
+      tick: 4,
+      buildings: [
+        {
+          id: 'main-1',
+          typeId: 'main_house' as const,
+          origin: { x: 9, y: 9 },
+          level: 1,
+        },
+        {
+          id: 'warehouse-1',
+          typeId: 'warehouse' as const,
+          origin: { x: 8, y: 9 },
+          level: 1,
+          capacity: 100,
+        },
+      ],
+      inventory: createInventory(100, { food: 3, wood: 4, stone: 1, coin: 0 }),
+      unlockedBlueprints: ['main_house' as const, 'warehouse' as const],
+      unlockedRecipes: ['basic_food'],
+      completedResearch: [],
+      availableResearch: [],
+      activeResearch: null,
+    };
+    const loaded = deserializeGame(raw, registry, upgrades);
+    expect(loaded).not.toBeNull();
+    const wh = loaded!.buildings.find((b) => b.id === 'warehouse-1')!;
+    expect(wh.origin).not.toEqual({ x: 8, y: 9 });
+    expect(loaded!.grid.getOccupant(wh.origin)).toBe('warehouse-1');
+    expect(loaded!.grid.getOccupant({ x: 9, y: 9 })).toBe('main-1');
   });
 
   it('corrupt payload returns null', () => {

@@ -20,6 +20,9 @@
     },
     "lumber_yard": {
       "2": { "cost": { "wood": 10, "stone": 5 }, "effects": {} }
+    },
+    "quarry": {
+      "2": { "cost": { "wood": 8, "stone": 10 }, "effects": {} }
     }
   },
   "warehouseCapacityByLevel": {

@@ -60,13 +60,14 @@ describe('advanceTick', () => {
       grid: new Grid(),
       buildings: [],
       inventory: createInventory(50, { food: 0, wood: 5, stone: 0, coin: 0 }),
-      unlockedBlueprints: ['main_house', 'farm'],
+      unlockedBlueprints: ['main_house', 'farm', 'research_institute'],
       unlockedRecipes: ['basic_food'],
       completedResearch: [],
       availableResearch: ['r1'],
       activeResearch: null,
     };
     placeBuilding(state, registry, 'farm', { x: 0, y: 0 }, () => 'f1');
+    placeBuilding(state, registry, 'research_institute', { x: 2, y: 0 }, () => 'ri-1');
     startResearch(state, registry, 'r1');
     advanceTick(state, registry);
     // Manual harvest: tick accumulates pending, not inventory food

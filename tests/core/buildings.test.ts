@@ -1,7 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { Grid } from '@/core/grid';
 import { createInventory } from '@/core/inventory';
-import { createRegistry, placeBuilding, demolishBuilding } from '@/core/buildings';
+import {
+  createRegistry,
+  demolishBuilding,
+  moveBuilding,
+  originFromGrab,
+  placeBuilding,
+} from '@/core/buildings';
 import type { BuildingDef, GameState, RecipeDef, ResearchDef } from '@/core/types';
 
 const buildings: BuildingDef[] = [
@@ -108,5 +114,52 @@ describe('placeBuilding / demolishBuilding', () => {
     expect(result.ok).toBe(true);
     expect(state.grid.getOccupant({ x: 0, y: 0 })).toBeNull();
     expect(state.buildings.find((b) => b.id === 'farm-1')).toBeUndefined();
+  });
+});
+
+describe('moveBuilding', () => {
+  it('moves a farm to an empty cell and keeps instance data', () => {
+    const registry = createRegistry(buildings, recipes, research);
+    const state = freshState();
+    placeBuilding(state, registry, 'farm', { x: 0, y: 0 }, () => 'farm-1');
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
+    farm.level = 2;
+    farm.pending = { food: 3 };
+
+    const result = moveBuilding(state, registry, 'farm-1', { x: 3, y: 4 });
+    expect(result.ok).toBe(true);
+    expect(farm.origin).toEqual({ x: 3, y: 4 });
+    expect(farm.level).toBe(2);
+    expect(farm.pending).toEqual({ food: 3 });
+    expect(state.grid.getOccupant({ x: 0, y: 0 })).toBeNull();
+    expect(state.grid.getOccupant({ x: 3, y: 4 })).toBe('farm-1');
+  });
+
+  it('allows main house to move and can shift a 2x2 onto its old cells', () => {
+    const registry = createRegistry(buildings, recipes, research);
+    const state = freshState();
+    const result = moveBuilding(state, registry, 'main-1', { x: 10, y: 9 });
+    expect(result.ok).toBe(true);
+    expect(state.grid.getOccupant({ x: 9, y: 9 })).toBeNull();
+    expect(state.grid.getOccupant({ x: 10, y: 9 })).toBe('main-1');
+    expect(state.grid.getOccupant({ x: 11, y: 10 })).toBe('main-1');
+  });
+
+  it('rejects overlap and restores the original occupancy', () => {
+    const registry = createRegistry(buildings, recipes, research);
+    const state = freshState();
+    placeBuilding(state, registry, 'farm', { x: 0, y: 0 }, () => 'farm-1');
+    const result = moveBuilding(state, registry, 'farm-1', { x: 9, y: 9 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('invalid placement');
+    expect(state.grid.getOccupant({ x: 0, y: 0 })).toBe('farm-1');
+    expect(state.grid.getOccupant({ x: 9, y: 9 })).toBe('main-1');
+  });
+
+  it('originFromGrab keeps the grabbed tile relative to origin', () => {
+    expect(originFromGrab({ x: 5, y: 6 }, { x: 1, y: 1 })).toEqual({
+      x: 4,
+      y: 5,
+    });
   });
 });

@@ -6,6 +6,7 @@
     "farm": "assets/buildings/farm.png",
     "research_institute": "assets/buildings/research_institute.png",
     "lumber_yard": "assets/buildings/lumber_yard.png",
+    "quarry": "assets/buildings/quarry.png",
     "warehouse": "assets/buildings/warehouse.png"
   },
   "tiles": {

@@ -1,9 +1,11 @@
-import { Grid } from './grid';
+import { Grid, findPlaceableOrigin } from './grid';
+import { withCustomBuildings } from './customBuilding';
 import type { ContentRegistry } from './registry';
 import type {
   ActiveResearch,
   BuildingInstance,
   BuildingTypeId,
+  CustomBuilding,
   GameState,
   InventoryState,
 } from './types';
@@ -33,6 +35,7 @@ export interface SerializedGame {
   completedResearch: string[];
   availableResearch: string[];
   activeResearch: ActiveResearch | null;
+  customBuildings?: CustomBuilding[];
 }
 
 export function serializeGame(state: GameState): SerializedGame {
@@ -66,6 +69,13 @@ export function serializeGame(state: GameState): SerializedGame {
     activeResearch: state.activeResearch
       ? { ...state.activeResearch }
       : null,
+    customBuildings: (state.customBuildings ?? []).map((b) => ({
+      id: b.id,
+      label: b.label,
+      prompt: b.prompt,
+      footprint: { ...b.footprint },
+      sprite: b.sprite,
+    })),
   };
 }
 
@@ -85,6 +95,10 @@ export function deserializeGame(
       return null;
     }
 
+    const registryWithCustom = withCustomBuildings(
+      registry,
+      s.customBuildings,
+    );
     const grid = new Grid();
     const buildings: BuildingInstance[] = (s.buildings as BuildingInstance[]).map(
       (b) => {
@@ -114,10 +128,23 @@ export function deserializeGame(
         return out;
       },
     );
-    for (const b of buildings) {
-      const def = registry.buildings.get(b.typeId);
+    for (const b of [
+      ...buildings.filter((x) => x.typeId === 'main_house'),
+      ...buildings.filter((x) => x.typeId !== 'main_house'),
+    ]) {
+      const def = registryWithCustom.buildings.get(b.typeId);
       if (!def) return null;
-      if (!grid.canPlace(b.origin, def.footprint)) return null;
+      if (!grid.canPlace(b.origin, def.footprint)) {
+        if (b.typeId === 'main_house') return null;
+        const next = findPlaceableOrigin(grid, def.footprint, [
+          { x: 20, y: 23 },
+          { x: 23, y: 20 },
+          { x: 26, y: 23 },
+          { x: 23, y: 26 },
+        ]);
+        if (!next) return null;
+        b.origin = { ...next };
+      }
       grid.occupy(b.id, b.origin, def.footprint);
     }
 
@@ -134,6 +161,15 @@ export function deserializeGame(
       completedResearch: [...(s.completedResearch ?? [])],
       availableResearch: [...(s.availableResearch ?? [])],
       activeResearch: s.activeResearch ? { ...s.activeResearch } : null,
+      customBuildings: Array.isArray(s.customBuildings)
+        ? s.customBuildings.map((b) => ({
+            id: b.id,
+            label: b.label,
+            prompt: b.prompt,
+            footprint: { ...b.footprint },
+            sprite: b.sprite,
+          }))
+        : [],
     };
 
     // Always recompute softCap from warehouses so saves stay consistent.

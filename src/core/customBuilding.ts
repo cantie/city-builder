@@ -1,0 +1,152 @@
+import { demolishBuilding } from './buildings';
+import type { ContentRegistry } from './registry';
+import type {
+  BuildingDef,
+  BuildingTypeId,
+  CustomBuilding,
+  Footprint,
+  GameState,
+  ResourceId,
+} from './types';
+
+export const MAX_CUSTOM_BUILDINGS = 3;
+export const INVENT_COST: Partial<Record<ResourceId, number>> = {
+  wood: 10,
+  stone: 8,
+  food: 8,
+};
+export const CUSTOM_PLACE_COST: Partial<Record<ResourceId, number>> = {
+  wood: 6,
+  stone: 3,
+};
+
+/** Shared PixelLab style — same string as assets/prompts/buildings.json `style`. */
+export const SYSTEM_ART_STYLE =
+  'cohesive cozy pixel-art isometric city builder, soft lighting, clean outline, transparent background, single building centered, no UI, no text, no characters';
+
+export type InventInputResult =
+  | { ok: true; prompt: string; footprint: Footprint }
+  | { ok: false; reason: string };
+
+export function validateInventInput(
+  rawPrompt: string,
+  width: number,
+  height: number,
+): InventInputResult {
+  const prompt = rawPrompt.trim().replace(/\s+/g, ' ');
+  if (prompt.length < 4 || prompt.length > 80) {
+    return { ok: false, reason: 'invalid prompt' };
+  }
+  if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(prompt)) {
+    return { ok: false, reason: 'invalid prompt' };
+  }
+  if (width !== height || (width !== 2 && width !== 3)) {
+    return { ok: false, reason: 'invalid footprint' };
+  }
+  return { ok: true, prompt, footprint: { width, height } };
+}
+
+export function composeInventPrompt(prompt: string, footprint: Footprint): string {
+  return `${SYSTEM_ART_STYLE}. isometric pixel art building, ${footprint.width}x${footprint.height} footprint feel, ${prompt}`;
+}
+
+export function nextCustomBuildingId(
+  existing: { id: string }[],
+): BuildingTypeId | null {
+  const used = new Set(existing.map((b) => b.id));
+  for (let i = 1; i <= MAX_CUSTOM_BUILDINGS; i++) {
+    const id = `custom-${i}`;
+    if (!used.has(id)) return id;
+  }
+  return null;
+}
+
+export function customBuildingLabel(prompt: string): string {
+  return prompt.length <= 24 ? prompt : `${prompt.slice(0, 23)}…`;
+}
+
+export function toCustomBuildingDef(rec: CustomBuilding): BuildingDef {
+  return {
+    id: rec.id,
+    label: rec.label,
+    footprint: { ...rec.footprint },
+    demolishable: true,
+    cost: { ...CUSTOM_PLACE_COST },
+    meshColor: 0x7a6bb0,
+    meshHeight: 1.0,
+    sprite: rec.sprite,
+  };
+}
+
+export function withCustomBuildings(
+  registry: ContentRegistry,
+  customs: CustomBuilding[] | undefined,
+): ContentRegistry {
+  const buildings = new Map(registry.buildings);
+  for (const rec of customs ?? []) {
+    buildings.set(rec.id, toCustomBuildingDef(rec));
+  }
+  return { buildings, recipes: registry.recipes, research: registry.research };
+}
+
+export function syncCustomRegistry(
+  registry: ContentRegistry,
+  customs: CustomBuilding[] | undefined,
+): void {
+  for (const id of [...registry.buildings.keys()]) {
+    if (String(id).startsWith('custom-')) {
+      registry.buildings.delete(id);
+    }
+  }
+  for (const rec of customs ?? []) {
+    registry.buildings.set(rec.id, toCustomBuildingDef(rec));
+  }
+}
+
+export function applyInventedBuilding(
+  state: GameState,
+  registry: ContentRegistry,
+  input: {
+    id: BuildingTypeId;
+    prompt: string;
+    footprint: Footprint;
+    sprite: string;
+  },
+): CustomBuilding {
+  const rec: CustomBuilding = {
+    id: input.id,
+    label: customBuildingLabel(input.prompt),
+    prompt: input.prompt,
+    footprint: { ...input.footprint },
+    sprite: input.sprite,
+  };
+  if (!state.customBuildings) state.customBuildings = [];
+  state.customBuildings.push(rec);
+  if (!state.unlockedBlueprints.includes(rec.id)) {
+    state.unlockedBlueprints.push(rec.id);
+  }
+  registry.buildings.set(rec.id, toCustomBuildingDef(rec));
+  return rec;
+}
+
+export function forgetCustomBuilding(
+  state: GameState,
+  registry: ContentRegistry,
+  typeId: BuildingTypeId,
+): { ok: true } | { ok: false; reason: string } {
+  if (!String(typeId).startsWith('custom-')) {
+    return { ok: false, reason: 'not a custom building' };
+  }
+  const list = state.customBuildings ?? [];
+  if (!list.some((b) => b.id === typeId)) {
+    return { ok: false, reason: 'not found' };
+  }
+  const instances = state.buildings.filter((b) => b.typeId === typeId);
+  for (const inst of instances) {
+    demolishBuilding(state, registry, inst.id);
+  }
+  state.customBuildings = list.filter((b) => b.id !== typeId);
+  state.unlockedBlueprints = state.unlockedBlueprints.filter((id) => id !== typeId);
+  registry.buildings.delete(typeId);
+  return { ok: true };
+}

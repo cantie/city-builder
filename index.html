@@ -55,13 +55,85 @@
       }
       #sidebar .muted { color: #888; }
       #sidebar .status { color: #ff8888; min-height: 1.2em; margin-top: 4px; }
+      #invent-prompt {
+        width: 100%; box-sizing: border-box; margin: 6px 0;
+        min-height: 64px; padding: 6px; resize: vertical;
+        background: #1e1e32; color: #eee;
+        border: 1px solid #3a3a55; border-radius: 4px; font: inherit;
+      }
+      #invent-sizes { margin: 4px 0 8px; }
+      #invent-sizes label { margin-right: 12px; cursor: pointer; }
+      #invent-submit {
+        text-align: center;
+        font-weight: 600;
+        background: #3d3a1a;
+      }
       #stage { flex: 1; position: relative; min-width: 0; }
       #phaser-root { position: absolute; inset: 0; }
+      #zoom-controls {
+        position: absolute;
+        right: 12px;
+        bottom: 12px;
+        z-index: 5;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      #zoom-controls button {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        font: 20px/1 system-ui, sans-serif;
+        color: #ffe066;
+        background: #12121c;
+        border: 1px solid #3a3a55;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #zoom-controls button:hover:not(:disabled) { background: #2a2a48; }
+      #zoom-controls button:disabled {
+        color: #555;
+        cursor: default;
+      }
       /* Three mesh path disabled — Phaser 2.5D sprites only */
       #three-root { display: none; pointer-events: none; }
+      #login {
+        position: fixed; inset: 0; z-index: 30;
+        display: flex; align-items: center; justify-content: center;
+        background: #1a1a2e; color: #eee;
+        font-family: system-ui, sans-serif;
+      }
+      #login[hidden] { display: none; }
+      #login form {
+        width: 280px; padding: 20px;
+        background: #12121c; border: 1px solid #3a3a55; border-radius: 8px;
+      }
+      #login h1 { margin: 0 0 12px; font-size: 18px; }
+      #login label { display: block; font-size: 13px; color: #a0a0c0; margin-bottom: 6px; }
+      #login input {
+        width: 100%; box-sizing: border-box; margin-bottom: 10px;
+        padding: 8px; background: #1e1e32; color: #eee;
+        border: 1px solid #3a3a55; border-radius: 4px; font: inherit;
+      }
+      #login button {
+        width: 100%; padding: 8px; background: #2a2a48; color: #ffe066;
+        border: 1px solid #3a3a55; border-radius: 4px; cursor: pointer; font: inherit;
+      }
+      #login .err { color: #ff8888; min-height: 1.2em; font-size: 13px; margin-top: 8px; }
+      #login .hint { color: #888; font-size: 12px; margin: 0 0 12px; }
     </style>
   </head>
   <body>
+    <div id="login">
+      <form id="login-form">
+        <h1>City Builder</h1>
+        <p class="hint">Enter a name (2–24 letters, numbers, _ or -). No password — that name is your save.</p>
+        <label for="player-name">Player name</label>
+        <input id="player-name" name="name" required minlength="2" maxlength="24" autocomplete="username" />
+        <button type="submit">Enter city</button>
+        <div id="login-error" class="err" aria-live="polite"></div>
+      </form>
+    </div>
     <div id="app">
       <aside id="sidebar">
         <section id="sidebar-resources">
@@ -76,6 +148,17 @@
         <section id="sidebar-research">
           <h2>Research</h2>
           <div id="research-body"></div>
+          <div id="invent-form">
+            <h2>Invent <span id="invent-count" class="muted">(0/3)</span></h2>
+            <div class="muted">Mô tả nhà (4–80 chữ). Ghép style PixelLab chung.</div>
+            <textarea id="invent-prompt" maxlength="80" placeholder="cozy noodle stall with lanterns"></textarea>
+            <div id="invent-sizes">
+              <label><input type="radio" name="invent-footprint" value="2" checked /> 2×2</label>
+              <label><input type="radio" name="invent-footprint" value="3" /> 3×3</label>
+            </div>
+            <button type="button" id="invent-submit">Nghiên cứu &amp; tạo ảnh</button>
+            <div id="invent-hint" class="muted"></div>
+          </div>
         </section>
         <section id="sidebar-selection">
           <h2>Selection</h2>
@@ -89,6 +172,10 @@
       <div id="stage">
         <div id="phaser-root"></div>
         <canvas id="three-root"></canvas>
+        <div id="zoom-controls">
+          <button type="button" id="zoom-in" title="Zoom in (+)">+</button>
+          <button type="button" id="zoom-out" title="Zoom out (−)">−</button>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

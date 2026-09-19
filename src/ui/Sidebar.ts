@@ -1,21 +1,24 @@
-import { demolishBuilding } from '@/core/buildings';
-import { harvestBuilding } from '@/core/farm';
-import { startResearch } from '@/core/research';
 import {
   getUpgradeDef,
-  upgradeBuilding,
   upgradeDisabledReason,
   type UpgradesConfig,
 } from '@/core/upgrades';
 import {
   researchStartDisabledReason,
   unlockedBuildOptions,
+  inventDisabledReason,
 } from '@/phaser/hud/hudLogic';
+import { INVENT_COST } from '@/core/customBuilding';
 import type { ContentRegistry } from '@/core/registry';
 import type { BuildingTypeId, GameState, ResourceId } from '@/core/types';
 import defaultUpgradesJson from '@/data/upgrades.json';
 
 const defaultUpgrades = defaultUpgradesJson as UpgradesConfig;
+
+export interface SidebarCommandResult {
+  ok: boolean;
+  reason?: string;
+}
 
 export interface SidebarDeps {
   getState: () => GameState;
@@ -25,7 +28,18 @@ export interface SidebarDeps {
   setSelectedBlueprint: (id: BuildingTypeId | null) => void;
   getSelectedBuildingId: () => string | null;
   setSelectedBuildingId: (id: string | null) => void;
-  onStateChange: () => void;
+  commands: {
+    harvest: (buildingId: string) => Promise<SidebarCommandResult>;
+    research: (researchId: string) => Promise<SidebarCommandResult>;
+    upgrade: (buildingId: string) => Promise<SidebarCommandResult>;
+    demolish: (buildingId: string) => Promise<SidebarCommandResult>;
+    invent: (
+      prompt: string,
+      width: number,
+      height: number,
+    ) => Promise<SidebarCommandResult>;
+    forgetBuilding: (typeId: BuildingTypeId) => Promise<SidebarCommandResult>;
+  };
   /** Optional toast / status line under sections. */
   setStatus?: (msg: string) => void;
   /** Wipe save and reload. */
@@ -52,7 +66,11 @@ export class Sidebar {
   private cancelBuildBtn: HTMLButtonElement;
   private statusEl: HTMLElement;
   private statusTimer: ReturnType<typeof setTimeout> | null = null;
-  private upgrades: UpgradesConfig;
+  private inventPrompt: HTMLTextAreaElement;
+  private inventBtn: HTMLButtonElement;
+  private inventCount: HTMLElement;
+  private inventHint: HTMLElement;
+  private inventBusy = false;
 
   constructor(private deps: SidebarDeps) {
     this.upgrades = deps.upgrades ?? defaultUpgrades;
@@ -64,6 +82,39 @@ export class Sidebar {
       'cancel-build',
     ) as HTMLButtonElement;
     this.statusEl = document.getElementById('sidebar-status')!;
+    this.inventPrompt = document.getElementById(
+      'invent-prompt',
+    ) as HTMLTextAreaElement;
+    this.inventBtn = document.getElementById(
+      'invent-submit',
+    ) as HTMLButtonElement;
+    this.inventCount = document.getElementById('invent-count')!;
+    this.inventHint = document.getElementById('invent-hint')!;
+
+    this.inventBtn.addEventListener('click', () => {
+      const chosen = document.querySelector<HTMLInputElement>(
+        'input[name="invent-footprint"]:checked',
+      );
+      const n = Number(chosen?.value ?? 2);
+      const state = this.deps.getState();
+      const blocked = inventDisabledReason(state);
+      if (blocked) {
+        this.flashStatus(blocked);
+        return;
+      }
+      this.inventBusy = true;
+      this.inventBtn.disabled = true;
+      this.inventBtn.textContent = 'Đang tạo ảnh…';
+      void this.deps.commands
+        .invent(this.inventPrompt.value, n, n)
+        .then((result) => {
+          this.inventBusy = false;
+          this.inventBtn.textContent = 'Nghiên cứu & tạo ảnh';
+          if (!result.ok) this.flashStatus(result.reason ?? '');
+          else this.inventPrompt.value = '';
+          this.refresh();
+        });
+    });
 
     this.cancelBuildBtn.addEventListener('click', () => {
       this.deps.setSelectedBlueprint(null);
@@ -160,38 +211,49 @@ export class Sidebar {
     if (state.availableResearch.length === 0 && !active) {
       const empty = document.createElement('div');
       empty.className = 'muted';
-      empty.textContent = 'Nothing available';
+      empty.textContent = 'No tech research available';
       this.researchBody.appendChild(empty);
-      return;
+    } else {
+      for (const id of state.availableResearch) {
+        const def = this.deps.registry.research.get(id);
+        if (!def) continue;
+        const reason = researchStartDisabledReason(
+          state,
+          this.deps.registry,
+          id,
+        );
+        const cost = formatCost(def.cost);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.disabled = !!reason;
+        btn.textContent = reason
+          ? `${def.label} — ${reason}`
+          : `${def.label} [${cost}] ${def.durationTicks}t`;
+        if (!reason) {
+          btn.addEventListener('click', () => {
+            void this.deps.commands.research(id).then((result) => {
+              if (!result.ok) this.flashStatus(result.reason ?? '');
+              this.refresh();
+            });
+          });
+        }
+        this.researchBody.appendChild(btn);
+      }
     }
 
-    for (const id of state.availableResearch) {
-      const def = this.deps.registry.research.get(id);
-      if (!def) continue;
-      const reason = researchStartDisabledReason(
-        state,
-        this.deps.registry,
-        id,
-      );
-      const cost = formatCost(def.cost);
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.disabled = !!reason;
-      btn.textContent = reason
-        ? `${def.label} — ${reason}`
-        : `${def.label} [${cost}] ${def.durationTicks}t`;
-      if (!reason) {
-        btn.addEventListener('click', () => {
-          const result = startResearch(state, this.deps.registry, id);
-          if (!result.ok) {
-            this.flashStatus(result.reason);
-            return;
-          }
-          this.deps.onStateChange();
-          this.refresh();
-        });
-      }
-      this.researchBody.appendChild(btn);
+    this.renderInvent(state);
+  }
+
+  private renderInvent(state: GameState): void {
+    const n = (state.customBuildings ?? []).length;
+    this.inventCount.textContent = `(${n}/3)`;
+    const reason = inventDisabledReason(state);
+    this.inventHint.textContent = reason
+      ? reason
+      : `Chi phí: ${formatCost(INVENT_COST)}`;
+    if (!this.inventBusy) {
+      this.inventBtn.disabled = false;
+      this.inventBtn.textContent = 'Nghiên cứu & tạo ảnh';
     }
   }
 
@@ -299,18 +361,10 @@ export class Sidebar {
         : `Upgrade to Lv ${nextLevel} (${costText})`;
       if (!reason) {
         upgradeBtn.addEventListener('click', () => {
-          const result = upgradeBuilding(
-            state,
-            this.deps.registry,
-            building.id,
-            this.upgrades,
-          );
-          if (!result.ok) {
-            this.flashStatus(result.reason);
-            return;
-          }
-          this.deps.onStateChange();
-          this.refresh();
+          void this.deps.commands.upgrade(building.id).then((result) => {
+            if (!result.ok) this.flashStatus(result.reason ?? '');
+            this.refresh();
+          });
         });
       }
       this.selectionBody.appendChild(upgradeBtn);
@@ -325,13 +379,10 @@ export class Sidebar {
       harvestBtn.disabled = !hasPending;
       harvestBtn.style.marginTop = '8px';
       harvestBtn.addEventListener('click', () => {
-        const result = harvestBuilding(state, building.id);
-        if (!result.ok) {
-          this.flashStatus(result.reason);
-          return;
-        }
-        this.deps.onStateChange();
-        this.refresh();
+        void this.deps.commands.harvest(building.id).then((result) => {
+          if (!result.ok) this.flashStatus(result.reason ?? '');
+          this.refresh();
+        });
       });
       this.selectionBody.appendChild(harvestBtn);
     }
@@ -359,13 +410,10 @@ export class Sidebar {
           : `${rdef.label} [${cost}]`;
         if (!reason) {
           btn.addEventListener('click', () => {
-            const result = startResearch(state, this.deps.registry, rid);
-            if (!result.ok) {
-              this.flashStatus(result.reason);
-              return;
-            }
-            this.deps.onStateChange();
-            this.refresh();
+            void this.deps.commands.research(rid).then((result) => {
+              if (!result.ok) this.flashStatus(result.reason ?? '');
+              this.refresh();
+            });
           });
         }
         this.selectionBody.appendChild(btn);
@@ -379,21 +427,33 @@ export class Sidebar {
       btn.style.color = '#ff8888';
       btn.style.marginTop = '8px';
       btn.addEventListener('click', () => {
-        const result = demolishBuilding(
-          state,
-          this.deps.registry,
-          building.id,
-          this.upgrades,
-        );
-        if (!result.ok) {
-          this.flashStatus(result.reason);
-          return;
-        }
-        this.deps.setSelectedBuildingId(null);
-        this.deps.onStateChange();
-        this.refresh();
+        void this.deps.commands.demolish(building.id).then((result) => {
+          if (!result.ok) {
+            this.flashStatus(result.reason ?? '');
+            this.refresh();
+            return;
+          }
+          this.deps.setSelectedBuildingId(null);
+          this.refresh();
+        });
       });
       this.selectionBody.appendChild(btn);
+    }
+
+    if (String(building.typeId).startsWith('custom-')) {
+      const forget = document.createElement('button');
+      forget.type = 'button';
+      forget.textContent = 'Forget this design';
+      forget.style.color = '#ff8888';
+      forget.style.marginTop = '8px';
+      forget.addEventListener('click', () => {
+        void this.deps.commands.forgetBuilding(building.typeId).then((result) => {
+          if (!result.ok) this.flashStatus(result.reason ?? '');
+          this.deps.setSelectedBuildingId(null);
+          this.refresh();
+        });
+      });
+      this.selectionBody.appendChild(forget);
     }
   }
 }
