@@ -3,7 +3,7 @@ import recipesJson from '@/data/recipes.json';
 import researchJson from '@/data/research.json';
 import upgradesJson from '@/data/upgrades.json';
 import { loadContentFromData } from '@/core/loadContent';
-import { createNewGame } from '@/core/bootstrap';
+import { createNewGame, ensureWarehouseMigrated } from '@/core/bootstrap';
 import { advanceTick } from '@/core/tick';
 import {
   LocalStorageAdapter,
@@ -27,6 +27,9 @@ if (!state) {
     console.warn('Corrupt save — starting new game');
   }
   state = createNewGame(registry, upgrades);
+} else if (ensureWarehouseMigrated(state, registry, upgrades)) {
+  // Old saves before warehouse: spawn one and persist.
+  saveGame(state, storage);
 }
 
 let selected: BuildingTypeId | null = null;
@@ -96,6 +99,10 @@ const sidebar = new Sidebar({
   onStateChange: () => {
     saveGame(state, storage);
     notifyUi();
+  },
+  onNewGame: () => {
+    storage.removeItem(SAVE_KEY);
+    window.location.reload();
   },
 });
 

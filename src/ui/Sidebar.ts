@@ -28,6 +28,8 @@ export interface SidebarDeps {
   onStateChange: () => void;
   /** Optional toast / status line under sections. */
   setStatus?: (msg: string) => void;
+  /** Wipe save and reload. */
+  onNewGame?: () => void;
 }
 
 function formatCost(cost: Partial<Record<ResourceId, number>>): string {
@@ -66,6 +68,14 @@ export class Sidebar {
     this.cancelBuildBtn.addEventListener('click', () => {
       this.deps.setSelectedBlueprint(null);
       this.refresh();
+    });
+
+    const newGameBtn = document.getElementById('new-game');
+    newGameBtn?.addEventListener('click', () => {
+      if (!this.deps.onNewGame) return;
+      if (window.confirm('Start a new game? Current save will be wiped.')) {
+        this.deps.onNewGame();
+      }
     });
   }
 

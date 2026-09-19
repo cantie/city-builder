@@ -38,6 +38,7 @@ export function placeBuilding(
   origin: Cell,
   idFactory: () => string = defaultId,
   upgrades: UpgradesConfig = defaultUpgrades,
+  options: { free?: boolean } = {},
 ): PlaceResult {
   if (!state.unlockedBlueprints.includes(typeId)) {
     return { ok: false, reason: 'blueprint not unlocked' };
@@ -47,7 +48,7 @@ export function placeBuilding(
   if (!state.grid.canPlace(origin, def.footprint)) {
     return { ok: false, reason: 'invalid placement' };
   }
-  if (!trySpend(state.inventory, def.cost)) {
+  if (!options.free && !trySpend(state.inventory, def.cost)) {
     return { ok: false, reason: 'cannot afford' };
   }
   const building: BuildingInstance = {

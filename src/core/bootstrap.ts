@@ -1,6 +1,6 @@
 import { placeBuilding, type ContentRegistry } from './buildings';
 import { createInventory } from './inventory';
-import { Grid } from './grid';
+import { Grid, GRID_HEIGHT, GRID_WIDTH } from './grid';
 import { refreshInventorySoftCap } from './warehouse';
 import type { UpgradesConfig } from './upgrades';
 import type { GameState } from './types';
@@ -68,4 +68,54 @@ export function createNewGame(
 
   refreshInventorySoftCap(state, upgrades);
   return state;
+}
+
+/**
+ * Older saves lack warehouses. Unlock blueprint and spawn one for free if missing.
+ * Returns true if state was mutated.
+ */
+export function ensureWarehouseMigrated(
+  state: GameState,
+  registry: ContentRegistry,
+  upgrades: UpgradesConfig = defaultUpgrades,
+): boolean {
+  let changed = false;
+  if (!state.unlockedBlueprints.includes('warehouse')) {
+    state.unlockedBlueprints.push('warehouse');
+    changed = true;
+  }
+  if (state.buildings.some((b) => b.typeId === 'warehouse')) {
+    refreshInventorySoftCap(state, upgrades);
+    return changed;
+  }
+
+  const preferred = [
+    { x: 8, y: 9 },
+    { x: 8, y: 8 },
+    { x: 8, y: 10 },
+    { x: 11, y: 9 },
+    { x: 11, y: 8 },
+    { x: 7, y: 9 },
+  ];
+  const scan = Array.from({ length: GRID_HEIGHT * GRID_WIDTH }, (_, i) => ({
+    x: i % GRID_WIDTH,
+    y: Math.floor(i / GRID_WIDTH),
+  }));
+
+  for (const origin of [...preferred, ...scan]) {
+    const result = placeBuilding(
+      state,
+      registry,
+      'warehouse',
+      origin,
+      () => 'warehouse-migrated',
+      upgrades,
+      { free: true },
+    );
+    if (result.ok) {
+      refreshInventorySoftCap(state, upgrades);
+      return true;
+    }
+  }
+  return changed;
 }
