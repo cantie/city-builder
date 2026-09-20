@@ -58,12 +58,14 @@ export async function generateImagePixflux(description: string): Promise<Buffer>
       isometric: true,
       no_background: true,
       text_guidance_scale: 5,
-      detail: 'high detail',
+      detail: 'highly detailed',
       outline: 'single color outline',
       seed,
     }),
   });
   if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    console.error('pixellab error', res.status, errText.slice(0, 500));
     throw new Error('pixellab failed');
   }
   const data = await res.json();
