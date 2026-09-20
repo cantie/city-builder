@@ -59,18 +59,26 @@ describe('validateInventInput', () => {
 
   it('rejects short, long, or mixed footprints', () => {
     expect(validateInventInput('ab', 2, 2).ok).toBe(false);
-    expect(validateInventInput('x'.repeat(81), 2, 2).ok).toBe(false);
+    expect(validateInventInput('x'.repeat(161), 2, 2).ok).toBe(false);
+    expect(validateInventInput('x'.repeat(160), 2, 2).ok).toBe(true);
     expect(validateInventInput('crystal bakery', 2, 3).ok).toBe(false);
     expect(validateInventInput('crystal bakery', 1, 1).ok).toBe(false);
   });
 });
 
 describe('composeInventPrompt', () => {
-  it('joins system style, footprint, and player text', () => {
-    const text = composeInventPrompt('a cozy noodle stall', { width: 2, height: 2 });
-    expect(text).toContain(SYSTEM_ART_STYLE);
-    expect(text).toContain('2x2 footprint');
-    expect(text).toContain('a cozy noodle stall');
+  it('leads with player brief, then soft constraints and footprint', () => {
+    const player = 'a cozy noodle stall';
+    const text = composeInventPrompt(player, { width: 2, height: 2 });
+    expect(text.indexOf(player)).toBeLessThan(text.indexOf('Soft constraints'));
+    expect(text.startsWith('Creative isometric pixel-art building:')).toBe(true);
+    expect(text).toContain(player);
+    expect(text).toMatch(/2[×x]2 footprint/);
+    expect(text).toContain('transparent background');
+    expect(text).toContain('no UI no text no characters');
+    expect(text).toContain('unique silhouette');
+    // SYSTEM_ART_STYLE remains exported for stability
+    expect(SYSTEM_ART_STYLE).toContain('isometric pixel-art');
   });
 });
 

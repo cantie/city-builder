@@ -20,9 +20,9 @@ export const CUSTOM_PLACE_COST: Partial<Record<ResourceId, number>> = {
   stone: 3,
 };
 
-/** Shared PixelLab style — same string as assets/prompts/buildings.json `style`. */
+/** Soft invent constraints — keep name for export stability. */
 export const SYSTEM_ART_STYLE =
-  'cohesive cozy pixel-art isometric city builder, soft lighting, clean outline, transparent background, single building centered, no UI, no text, no characters';
+  'isometric pixel-art game building, transparent background, no UI no text no characters, readable silhouette; varied materials, shapes, mood, fantasy or quirky designs welcome';
 
 export type InventInputResult =
   | { ok: true; prompt: string; footprint: Footprint }
@@ -34,7 +34,7 @@ export function validateInventInput(
   height: number,
 ): InventInputResult {
   const prompt = rawPrompt.trim().replace(/\s+/g, ' ');
-  if (prompt.length < 4 || prompt.length > 80) {
+  if (prompt.length < 4 || prompt.length > 160) {
     return { ok: false, reason: 'invalid prompt' };
   }
   if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(prompt)) {
@@ -47,7 +47,12 @@ export function validateInventInput(
 }
 
 export function composeInventPrompt(prompt: string, footprint: Footprint): string {
-  return `${SYSTEM_ART_STYLE}. isometric pixel art building, ${footprint.width}x${footprint.height} footprint feel, ${prompt}`;
+  return (
+    `Creative isometric pixel-art building: ${prompt}. ` +
+    `Soft constraints: ${footprint.width}×${footprint.height} footprint feel, ` +
+    `transparent background, no UI no text no characters, cohesive game-ready sprite, ` +
+    `encourage unique silhouette and details.`
+  );
 }
 
 export function nextCustomBuildingId(

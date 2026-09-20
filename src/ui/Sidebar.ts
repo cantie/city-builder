@@ -71,6 +71,7 @@ export class Sidebar {
   private inventCount: HTMLElement;
   private inventHint: HTMLElement;
   private inventBusy = false;
+  private upgrades: UpgradesConfig;
 
   constructor(private deps: SidebarDeps) {
     this.upgrades = deps.upgrades ?? defaultUpgrades;
