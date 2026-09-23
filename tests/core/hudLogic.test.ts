@@ -5,6 +5,7 @@ import { createRegistry } from '@/core/buildings';
 import {
   unlockedBuildOptions,
   researchStartDisabledReason,
+  nextSidebarPanel,
 } from '@/phaser/hud/hudLogic';
 import type { BuildingDef, GameState, ResearchDef } from '@/core/types';
 
@@ -97,5 +98,50 @@ describe('hudLogic', () => {
     s.inventory.amounts.food = 50;
     s.activeResearch = { researchId: 'r1', remainingTicks: 1 };
     expect(researchStartDisabledReason(s, registry, 'r1')).toMatch(/busy/i);
+  });
+
+  it('keeps sidebar panels exclusive and follows selection', () => {
+    expect(
+      nextSidebarPanel({
+        current: 'inspect',
+        action: 'toggle-build',
+        selectedTypeId: null,
+      }),
+    ).toBe('build');
+    expect(
+      nextSidebarPanel({
+        current: 'build',
+        action: 'toggle-build',
+        selectedTypeId: null,
+      }),
+    ).toBe('inspect');
+    expect(
+      nextSidebarPanel({
+        current: 'build',
+        action: 'toggle-research',
+        selectedTypeId: null,
+      }),
+    ).toBe('research');
+    expect(
+      nextSidebarPanel({
+        current: 'build',
+        action: 'sync-selection',
+        selectedTypeId: 'research_institute',
+      }),
+    ).toBe('research');
+    expect(
+      nextSidebarPanel({
+        current: 'research',
+        action: 'sync-selection',
+        selectedTypeId: 'farm',
+      }),
+    ).toBe('inspect');
+    expect(
+      nextSidebarPanel({
+        current: 'build',
+        action: 'sync-selection',
+        selectedTypeId: null,
+      }),
+    ).toBe('build');
   });
 });

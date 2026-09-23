@@ -3,10 +3,14 @@ import {
   upgradeDisabledReason,
   type UpgradesConfig,
 } from '@/core/upgrades';
+import { hasResearchInstitute } from '@/core/research';
 import {
   researchStartDisabledReason,
   unlockedBuildOptions,
   inventDisabledReason,
+  nextSidebarPanel,
+  selectedBuildingTypeId,
+  type SidebarPanel,
 } from '@/phaser/hud/hudLogic';
 import { INVENT_COST } from '@/core/customBuilding';
 import type { ContentRegistry } from '@/core/registry';
@@ -58,6 +62,17 @@ function formatOutputs(outputs: Partial<Record<ResourceId, number>>): string {
     .join(', ');
 }
 
+const RESOURCE_ICONS: Record<ResourceId, string> = {
+  food: `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#e07070" d="M8 2c2 2 5 3 5 7a5 5 0 1 1-10 0c0-4 3-5 5-7z"/><path fill="#6bb36b" d="M8 2c0 2-2 3-4 3 1-2 3-3 4-3z"/></svg>`,
+  wood: `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#c4894a" d="M2 7h12l-1 6H3z"/><path fill="#8a5a2b" d="M3 6h10v2H3z"/><path fill="#d4a36a" d="M4 9h8v1H4z"/></svg>`,
+  stone: `<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="#9a9aaa" d="M3 11 6 4h4l3 7-2 2H5z"/><path fill="#6f6f80" d="M5 13h6l2-2H3z"/></svg>`,
+  coin: `<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="#e6c34a"/><circle cx="8" cy="8" r="4" fill="none" stroke="#9a7a18" stroke-width="1.4"/></svg>`,
+};
+
+function spriteUrl(def: { id: string; sprite?: string }): string {
+  return def.sprite ?? `/assets/buildings/${def.id}.png`;
+}
+
 export class Sidebar {
   private resourcesBody: HTMLElement;
   private buildBody: HTMLElement;
@@ -71,7 +86,14 @@ export class Sidebar {
   private inventCount: HTMLElement;
   private inventHint: HTMLElement;
   private inventBusy = false;
+  private panel: SidebarPanel = 'inspect';
   private upgrades: UpgradesConfig;
+  private buildSection: HTMLElement;
+  private researchSection: HTMLElement;
+  private selectionSection: HTMLElement;
+  private metaSection: HTMLElement;
+  private actionBuildBtn: HTMLButtonElement;
+  private actionResearchBtn: HTMLButtonElement;
 
   constructor(private deps: SidebarDeps) {
     this.upgrades = deps.upgrades ?? defaultUpgrades;
@@ -91,6 +113,41 @@ export class Sidebar {
     ) as HTMLButtonElement;
     this.inventCount = document.getElementById('invent-count')!;
     this.inventHint = document.getElementById('invent-hint')!;
+    this.buildSection = document.getElementById('sidebar-build')!;
+    this.researchSection = document.getElementById('sidebar-research')!;
+    this.selectionSection = document.getElementById('sidebar-selection')!;
+    this.metaSection = document.getElementById('sidebar-meta')!;
+    this.actionBuildBtn = document.getElementById(
+      'action-build',
+    ) as HTMLButtonElement;
+    this.actionResearchBtn = document.getElementById(
+      'action-research',
+    ) as HTMLButtonElement;
+
+    this.actionBuildBtn.addEventListener('click', () => {
+      this.applyPanel(
+        nextSidebarPanel({
+          current: this.panel,
+          action: 'toggle-build',
+          selectedTypeId: null,
+        }),
+      );
+    });
+
+    this.actionResearchBtn.addEventListener('click', () => {
+      const state = this.deps.getState();
+      if (!hasResearchInstitute(state)) {
+        this.flashStatus('need research institute');
+        return;
+      }
+      this.applyPanel(
+        nextSidebarPanel({
+          current: this.panel,
+          action: 'toggle-research',
+          selectedTypeId: null,
+        }),
+      );
+    });
 
     this.inventBtn.addEventListener('click', () => {
       const chosen = document.querySelector<HTMLInputElement>(
@@ -143,10 +200,48 @@ export class Sidebar {
 
   refresh(): void {
     const state = this.deps.getState();
+    this.panel = nextSidebarPanel({
+      current: this.panel,
+      action: 'sync-selection',
+      selectedTypeId: selectedBuildingTypeId(
+        state,
+        this.deps.getSelectedBuildingId(),
+      ),
+    });
     this.renderResources(state);
     this.renderBuild(state);
     this.renderResearch(state);
     this.renderSelection(state);
+  }
+
+  private applyPanel(panel: SidebarPanel): void {
+    this.panel = panel;
+    if (panel !== 'build') this.deps.setSelectedBlueprint(null);
+    if (panel === 'build') {
+      this.deps.setSelectedBuildingId(null);
+      this.refresh();
+      return;
+    }
+    if (panel === 'research') {
+      const ri = this.deps
+        .getState()
+        .buildings.find((b) => b.typeId === 'research_institute');
+      if (ri && this.deps.getSelectedBuildingId() !== ri.id) {
+        this.deps.setSelectedBuildingId(ri.id);
+        return;
+      }
+    }
+    if (panel === 'inspect') {
+      const typeId = selectedBuildingTypeId(
+        this.deps.getState(),
+        this.deps.getSelectedBuildingId(),
+      );
+      if (typeId === 'research_institute') {
+        this.deps.setSelectedBuildingId(null);
+        return;
+      }
+    }
+    this.refresh();
   }
 
   private renderResources(state: GameState): void {
@@ -156,19 +251,31 @@ export class Sidebar {
       cap <= 0
         ? 'Warehouse cap 0 — place a warehouse to store harvests'
         : `Warehouse cap ${cap}`;
+    const ids: ResourceId[] = ['food', 'wood', 'stone', 'coin'];
+    const cells = ids
+      .map(
+        (id) => `
+      <div class="resource" title="${id}">
+        ${RESOURCE_ICONS[id]}
+        <strong>${a[id]}</strong>
+      </div>`,
+      )
+      .join('');
     this.resourcesBody.innerHTML = `
-      <div>Food <strong>${a.food}</strong></div>
-      <div>Wood <strong>${a.wood}</strong></div>
-      <div>Stone <strong>${a.stone}</strong></div>
-      <div>Coin <strong>${a.coin}</strong></div>
+      <div class="resource-row">${cells}</div>
       <div class="muted" style="margin-top:6px">Tick ${state.tick} · ${capNote}</div>
     `;
   }
 
   private renderBuild(state: GameState): void {
     const selected = this.deps.getSelectedBlueprint();
-    this.cancelBuildBtn.hidden = selected == null;
+    const show = this.panel === 'build';
+    this.buildSection.hidden = !show;
+    this.actionBuildBtn.classList.toggle('active', show);
+    this.actionBuildBtn.setAttribute('aria-pressed', String(show));
+    this.cancelBuildBtn.hidden = !show || selected == null;
     this.buildBody.replaceChildren();
+    if (!show) return;
 
     const opts = unlockedBuildOptions(state, this.deps.registry);
     if (opts.length === 0) {
@@ -182,9 +289,17 @@ export class Sidebar {
     for (const def of opts) {
       const btn = document.createElement('button');
       btn.type = 'button';
+      btn.className = 'build-tile';
       const cost = formatCost(def.cost);
-      btn.textContent = cost ? `${def.label} (${cost})` : def.label;
+      btn.title = cost ? `${def.label} (${cost})` : def.label;
       if (selected === def.id) btn.classList.add('active');
+      const img = document.createElement('img');
+      img.src = spriteUrl(def);
+      img.alt = def.label;
+      const label = document.createElement('span');
+      label.className = 'build-tile-label';
+      label.textContent = def.label;
+      btn.append(img, label);
       btn.addEventListener('click', () => {
         if (this.deps.getSelectedBlueprint() === def.id) {
           this.deps.setSelectedBlueprint(null);
@@ -199,7 +314,14 @@ export class Sidebar {
   }
 
   private renderResearch(state: GameState): void {
+    const show = this.panel === 'research';
+    this.researchSection.hidden = !show;
+    this.actionResearchBtn.classList.toggle('active', show);
+    this.actionResearchBtn.setAttribute('aria-pressed', String(show));
+    this.actionResearchBtn.disabled = !hasResearchInstitute(state);
     this.researchBody.replaceChildren();
+    if (!show) return;
+
 
     const active = state.activeResearch;
     if (active) {
@@ -259,8 +381,12 @@ export class Sidebar {
   }
 
   private renderSelection(state: GameState): void {
+    const show = this.panel === 'inspect';
+    this.selectionSection.hidden = !show;
+    this.metaSection.hidden = !show;
     const id = this.deps.getSelectedBuildingId();
     this.selectionBody.replaceChildren();
+    if (!show) return;
 
     if (!id) {
       this.selectionBody.className = 'muted';
@@ -386,39 +512,6 @@ export class Sidebar {
         });
       });
       this.selectionBody.appendChild(harvestBtn);
-    }
-
-    if (building.typeId === 'research_institute') {
-      const heading = document.createElement('div');
-      heading.style.marginTop = '8px';
-      heading.textContent = 'Start research:';
-      this.selectionBody.appendChild(heading);
-
-      for (const rid of state.availableResearch) {
-        const rdef = this.deps.registry.research.get(rid);
-        if (!rdef) continue;
-        const reason = researchStartDisabledReason(
-          state,
-          this.deps.registry,
-          rid,
-        );
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.disabled = !!reason;
-        const cost = formatCost(rdef.cost);
-        btn.textContent = reason
-          ? `${rdef.label} — ${reason}`
-          : `${rdef.label} [${cost}]`;
-        if (!reason) {
-          btn.addEventListener('click', () => {
-            void this.deps.commands.research(rid).then((result) => {
-              if (!result.ok) this.flashStatus(result.reason ?? '');
-              this.refresh();
-            });
-          });
-        }
-        this.selectionBody.appendChild(btn);
-      }
     }
 
     if (def.demolishable && building.typeId !== 'main_house') {

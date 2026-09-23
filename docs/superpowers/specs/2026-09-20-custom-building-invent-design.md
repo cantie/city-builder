@@ -52,7 +52,7 @@ Login/command snapshots include `customBuildings`. Client merges defs into the r
 
 ## Errors
 
-`need research institute` · `custom building limit` · `invalid prompt` · `invalid footprint` · `cannot afford` · `missing pixellab key` · `pixellab failed`
+`need research institute` · `custom building limit` · `invalid prompt` · `invalid footprint` · `cannot afford` · `missing image key` · `image generation failed`
 
 ## Non-goals
 

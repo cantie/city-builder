@@ -36,9 +36,11 @@ import { normalizePlayerName } from '../src/core/playerName';
 import type { ContentRegistry } from '../src/core/registry';
 import type { BuildingTypeId, GameState } from '../src/core/types';
 import {
-  generateImagePixflux,
+  IMAGE_GEN_FAILED,
+  MISSING_IMAGE_KEY,
+  createImageGenerator,
   type GenerateImage,
-} from './pixellab';
+} from './imageGen';
 
 export interface PlayerRecord {
   name: string;
@@ -68,7 +70,7 @@ export class PlayerStore {
     private registry: ContentRegistry,
     private upgrades: UpgradesConfig,
     private now: () => number = () => Date.now(),
-    private generateImage: GenerateImage = generateImagePixflux,
+    private generateImage: GenerateImage = createImageGenerator(),
   ) {}
 
   async login(name: string): Promise<CommandResult> {
@@ -146,9 +148,9 @@ export class PlayerStore {
         );
       } catch (err) {
         const reason =
-          err instanceof Error && err.message === 'missing pixellab key'
-            ? 'missing pixellab key'
-            : 'pixellab failed';
+          err instanceof Error && err.message === MISSING_IMAGE_KEY
+            ? MISSING_IMAGE_KEY
+            : IMAGE_GEN_FAILED;
         return { ok: false as const, reason, game: serializeGame(state) };
       }
       if (!trySpend(state.inventory, INVENT_COST)) {

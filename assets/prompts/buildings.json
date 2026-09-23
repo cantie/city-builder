@@ -41,10 +41,10 @@
     {
       "id": "empty",
       "file": "empty.png",
-      "prompt": "empty bare isometric ground tile, flat plain dirt or stone slab surface, neutral beige-brown, smooth minimal shading, clean single color outline, seamless map tile, NO grass, NO plants, NO trees, NO bushes, NO rocks, NO flowers, NO props, NO decoration, blank empty terrain",
+      "prompt": "packed dirt ground, warm beige-brown earth, subtle soil grain, flat isometric thick tile, cozy pixel-art city builder, clean single outline, no grass no plants no rocks no flowers no props no cracks no decoration",
       "image_size": {
-        "width": 32,
-        "height": 32
+        "width": 64,
+        "height": 64
       },
       "isometric_tile_shape": "thick tile",
       "isometric_tile_size": 32

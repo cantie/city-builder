@@ -77,7 +77,7 @@ describe('PlayerStore', () => {
     'base64',
   );
 
-  it('invents a custom building after PixelLab and does not spend if generate fails', async () => {
+  it('invents a custom building after image gen and does not spend if generate fails', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'cb-invent-'));
     try {
       let calls = 0;
@@ -88,7 +88,7 @@ describe('PlayerStore', () => {
         () => 1_000,
         async () => {
           calls += 1;
-          if (calls === 1) throw new Error('pixellab failed');
+          if (calls === 1) throw new Error('image generation failed');
           return TINY_PNG;
         },
       );

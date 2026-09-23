@@ -12,10 +12,12 @@ import upgradesJson from '../src/data/upgrades.json';
 import type { UpgradesConfig } from '../src/core/upgrades';
 import type { BuildingTypeId } from '../src/core/types';
 import { PlayerStore, type PlayerAction } from './playerStore';
-import { loadLocalEnv } from './pixellab';
+import { loadLocalEnv } from './env';
+import { logImageBackend } from './imageGen';
 import { normalizePlayerName } from '../src/core/playerName';
 
 loadLocalEnv();
+logImageBackend('startup');
 
 const COOKIE = 'player';
 const PORT = Number(process.env.PORT ?? 3001);
@@ -201,4 +203,5 @@ app.get('/api/sprites/:id', async (c) => {
 
 serve({ fetch: app.fetch, port: PORT }, () => {
   console.log(`city-builder API on http://localhost:${PORT}`);
+  logImageBackend('listening');
 });

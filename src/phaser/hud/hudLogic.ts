@@ -29,6 +29,32 @@ export function researchStartDisabledReason(
   return null;
 }
 
+export type SidebarPanel = 'inspect' | 'build' | 'research';
+
+export function selectedBuildingTypeId(
+  state: GameState,
+  selectedBuildingId: string | null,
+): string | null {
+  if (!selectedBuildingId) return null;
+  return state.buildings.find((b) => b.id === selectedBuildingId)?.typeId ?? null;
+}
+
+export function nextSidebarPanel(input: {
+  current: SidebarPanel;
+  action: 'toggle-build' | 'toggle-research' | 'sync-selection';
+  selectedTypeId: string | null;
+}): SidebarPanel {
+  if (input.action === 'toggle-build') {
+    return input.current === 'build' ? 'inspect' : 'build';
+  }
+  if (input.action === 'toggle-research') {
+    return input.current === 'research' ? 'inspect' : 'research';
+  }
+  if (input.selectedTypeId === 'research_institute') return 'research';
+  if (input.selectedTypeId) return 'inspect';
+  return input.current;
+}
+
 export function inventDisabledReason(state: GameState): string | null {
   if (!hasResearchInstitute(state)) return 'need research institute';
   if ((state.customBuildings ?? []).length >= MAX_CUSTOM_BUILDINGS) {
