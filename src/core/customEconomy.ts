@@ -79,3 +79,30 @@ export function trainAtOrigin(
   addArmy(state, rec.unitId, 1);
   return { ok: true };
 }
+
+export function spendSellerForReplica(
+  seller: GameState,
+  slot: string,
+  uniqueNeed: number,
+): { ok: true; exportPrice: number } | { ok: false; reason: string } {
+  const rec = (seller.customBuildings ?? []).find((c) => c.id === slot);
+  if (!rec) return { ok: false, reason: 'abandoned' };
+  if (!rec.exportEnabled) return { ok: false, reason: 'export disabled' };
+  const origins = seller.buildings.filter((b) => b.typeId === slot);
+  if (origins.length === 0) return { ok: false, reason: 'need origin' };
+  let available = 0;
+  for (const o of origins) {
+    available += (o.exportStock ?? 0) + (o.uniquePending ?? 0);
+  }
+  if (available < uniqueNeed) return { ok: false, reason: 'out of stock' };
+  let remaining = uniqueNeed;
+  for (const o of origins) {
+    pullUniqueToStock(o, remaining);
+    const have = o.exportStock ?? 0;
+    const take = Math.min(have, remaining);
+    o.exportStock = have - take;
+    remaining -= take;
+    if (remaining <= 0) break;
+  }
+  return { ok: true, exportPrice: rec.exportPrice };
+}

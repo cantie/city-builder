@@ -275,4 +275,141 @@ describe('PlayerStore', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('replica train pays seller and deducts unique stock', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-replica-'));
+    try {
+      let now = 1_000;
+      const store = new PlayerStore(
+        dir,
+        registry,
+        upgrades,
+        () => now,
+        async () => TINY_PNG,
+        async () => ({
+          building: 'Crystal Bakery',
+          resource: 'Crystal Ore',
+          unit: 'Crystal Troop',
+        }),
+      );
+      await store.login('Ada');
+      await store.apply('Ada', {
+        op: 'place',
+        typeId: 'research_institute',
+        x: 0,
+        y: 0,
+      });
+      const invented = await store.invent('Ada', 'crystal bakery', 3, 3);
+      const rec = invented.game.customBuildings!.find((b) => b.id === 'custom-1')!;
+      const placed = await store.apply('Ada', {
+        op: 'place',
+        typeId: 'custom-1',
+        x: 10,
+        y: 10,
+      });
+      const origin = placed.game.buildings.find((b) => b.typeId === 'custom-1')!;
+      await store.listOnMarket('Ada', 'custom-1', 20);
+      now = 1_000 + TICK_INTERVAL_MS * 5;
+      await store.snapshot('Ada');
+      await store.apply('Ada', { op: 'harvest', buildingId: origin.id });
+
+      await store.login('Bob');
+      const { readFile, writeFile } = await import('node:fs/promises');
+      const bobPath = join(dir, 'bob.json');
+      const bobRec = JSON.parse(await readFile(bobPath, 'utf8')) as {
+        game: { inventory: { amounts: { coin: number; food: number } } };
+      };
+      bobRec.game.inventory.amounts.coin = 40;
+      bobRec.game.inventory.amounts.food = 20;
+      await writeFile(bobPath, JSON.stringify(bobRec));
+      await store.buyListing('Bob', 'custom-ada-1');
+      const replica = await store.apply('Bob', {
+        op: 'place',
+        typeId: 'custom-ada-1',
+        x: 10,
+        y: 10,
+      });
+      expect(replica.ok).toBe(true);
+      const replicaId = replica.game.buildings.find(
+        (b) => b.typeId === 'custom-ada-1',
+      )!.id;
+      const trained = await store.apply('Bob', {
+        op: 'train',
+        buildingId: replicaId,
+      });
+      expect(trained.ok).toBe(true);
+      expect(trained.game.army?.[rec.unitId]).toBe(1);
+      const ada = await store.snapshot('Ada');
+      expect(ada.game.inventory.amounts.coin).toBeGreaterThan(0);
+      expect(
+        ada.game.buildings.find((b) => b.id === origin.id)?.exportStock,
+      ).toBe(0);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('replica train fails when export disabled or no stock', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-export-off-'));
+    try {
+      let now = 1_000;
+      const store = new PlayerStore(
+        dir,
+        registry,
+        upgrades,
+        () => now,
+        async () => TINY_PNG,
+        async () => ({
+          building: 'Crystal Bakery',
+          resource: 'Crystal Ore',
+          unit: 'Crystal Troop',
+        }),
+      );
+      await store.login('Ada');
+      await store.apply('Ada', {
+        op: 'place',
+        typeId: 'research_institute',
+        x: 0,
+        y: 0,
+      });
+      await store.invent('Ada', 'crystal bakery', 3, 3);
+      const placed = await store.apply('Ada', {
+        op: 'place',
+        typeId: 'custom-1',
+        x: 10,
+        y: 10,
+      });
+      const origin = placed.game.buildings.find((b) => b.typeId === 'custom-1')!;
+      await store.listOnMarket('Ada', 'custom-1', 20);
+      now = 1_000 + TICK_INTERVAL_MS * 5;
+      await store.snapshot('Ada');
+      await store.apply('Ada', { op: 'harvest', buildingId: origin.id });
+      await store.setExport('Ada', 'custom-1', false);
+
+      await store.login('Bob');
+      const { readFile, writeFile } = await import('node:fs/promises');
+      const bobPath = join(dir, 'bob.json');
+      const bobRec = JSON.parse(await readFile(bobPath, 'utf8')) as {
+        game: { inventory: { amounts: { coin: number; food: number } } };
+      };
+      bobRec.game.inventory.amounts.coin = 40;
+      bobRec.game.inventory.amounts.food = 20;
+      await writeFile(bobPath, JSON.stringify(bobRec));
+      await store.buyListing('Bob', 'custom-ada-1');
+      const replica = await store.apply('Bob', {
+        op: 'place',
+        typeId: 'custom-ada-1',
+        x: 10,
+        y: 10,
+      });
+      const replicaId = replica.game.buildings.find(
+        (b) => b.typeId === 'custom-ada-1',
+      )!.id;
+      const r = await store.apply('Bob', { op: 'train', buildingId: replicaId });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.reason).toBe('export disabled');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

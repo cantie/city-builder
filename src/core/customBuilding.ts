@@ -219,6 +219,17 @@ export function forgetCustomBuilding(
   if (!String(typeId).startsWith('custom-')) {
     return { ok: false, reason: 'not a custom building' };
   }
+  const license = (state.licenses ?? []).find((l) => l.typeId === typeId);
+  if (license) {
+    const instances = state.buildings.filter((b) => b.typeId === typeId);
+    for (const inst of instances) {
+      demolishBuilding(state, registry, inst.id);
+    }
+    state.licenses = (state.licenses ?? []).filter((l) => l.typeId !== typeId);
+    state.unlockedBlueprints = state.unlockedBlueprints.filter((id) => id !== typeId);
+    registry.buildings.delete(typeId);
+    return { ok: true };
+  }
   const list = state.customBuildings ?? [];
   if (!list.some((b) => b.id === typeId)) {
     return { ok: false, reason: 'not found' };

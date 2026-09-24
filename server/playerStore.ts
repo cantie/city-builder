@@ -20,10 +20,17 @@ import {
   validateInventInput,
   withCustomBuildings,
 } from '../src/core/customBuilding';
-import { trainAtOrigin } from '../src/core/customEconomy';
+import {
+  TRAIN_FOOD_COST,
+  TRAIN_UNIQUE_COST,
+  addArmy,
+  isOriginCustom,
+  spendSellerForReplica,
+  trainAtOrigin,
+} from '../src/core/customEconomy';
+import { trySpend } from '../src/core/inventory';
 import { parseCustomSlot, sharedCustomTypeId } from '../src/core/customIds';
 import { harvestBuilding } from '../src/core/farm';
-import { trySpend } from '../src/core/inventory';
 import { withLicenses } from '../src/core/licenses';
 import { applyBuy, validateList } from '../src/core/market';
 import { nameInventTrio, type InventTrio } from './nameBuilding';
@@ -209,6 +216,9 @@ export class PlayerStore {
         reason: 'invalid player name',
         game: serializeGame(createNewGame(this.registry, this.upgrades)),
       };
+    }
+    if (action.op === 'train') {
+      return this.train(name, action.buildingId);
     }
     return this.withLock(key, async () => {
       const rec = await this.readOrCreate(key);
@@ -431,8 +441,6 @@ export class PlayerStore {
         );
       case 'forget-building':
         return forgetCustomBuilding(state, registry, action.typeId);
-      case 'train':
-        return trainAtOrigin(state, action.buildingId);
       default:
         return { ok: false, reason: 'unknown action' };
     }
@@ -532,5 +540,98 @@ export class PlayerStore {
     } finally {
       release();
     }
+  }
+
+  private async withLocks<T>(keys: string[], fn: () => Promise<T>): Promise<T> {
+    const uniq = [...new Set(keys)].sort();
+    const run = async (i: number): Promise<T> =>
+      i >= uniq.length ? fn() : this.withLock(uniq[i]!, () => run(i + 1));
+    return run(0);
+  }
+
+  async train(name: string, buildingId: string): Promise<CommandResult> {
+    const buyerKey = normalizePlayerName(name);
+    if (!buyerKey) {
+      return {
+        ok: false,
+        reason: 'invalid player name',
+        game: serializeGame(createNewGame(this.registry, this.upgrades)),
+      };
+    }
+    const peekRec = await this.readOrCreate(buyerKey);
+    const peek = this.hydrate(peekRec);
+    const peekBuilding = peek.buildings.find((b) => b.id === buildingId);
+    const license = (peek.licenses ?? []).find(
+      (l) => l.typeId === peekBuilding?.typeId,
+    );
+    const keys = license ? [buyerKey, license.owner] : [buyerKey];
+    return this.withLocks(keys, async () => {
+      const buyerRec = await this.readOrCreate(buyerKey);
+      const buyer = this.hydrate(buyerRec);
+      this.catchUpAndMigrate(buyer, buyerRec);
+      const building = buyer.buildings.find((b) => b.id === buildingId);
+      if (!building) {
+        return {
+          ok: false as const,
+          reason: 'not found',
+          game: serializeGame(buyer),
+        };
+      }
+      if (isOriginCustom(buyer, building)) {
+        const result = trainAtOrigin(buyer, buildingId);
+        await this.write(buyerKey, buyerRec, buyer);
+        return result.ok
+          ? { ok: true as const, game: serializeGame(buyer) }
+          : { ok: false as const, reason: result.reason, game: serializeGame(buyer) };
+      }
+      const lic = (buyer.licenses ?? []).find((l) => l.typeId === building.typeId);
+      if (!lic) {
+        return {
+          ok: false as const,
+          reason: 'abandoned',
+          game: serializeGame(buyer),
+        };
+      }
+      const sellerKey = lic.owner;
+      const sellerRec = await this.readOrCreate(sellerKey);
+      const seller = this.hydrate(sellerRec);
+      this.catchUpAndMigrate(seller, sellerRec);
+      await this.write(sellerKey, sellerRec, seller);
+      const originRec = (seller.customBuildings ?? []).find(
+        (c) => c.id === lic.slot,
+      );
+      if (!originRec) {
+        return {
+          ok: false as const,
+          reason: 'abandoned',
+          game: serializeGame(buyer),
+        };
+      }
+      const coinCost = originRec.exportPrice * TRAIN_UNIQUE_COST;
+      if (
+        buyer.inventory.amounts.food < TRAIN_FOOD_COST ||
+        buyer.inventory.amounts.coin < coinCost
+      ) {
+        return {
+          ok: false as const,
+          reason: 'cannot afford',
+          game: serializeGame(buyer),
+        };
+      }
+      const spent = spendSellerForReplica(seller, lic.slot, TRAIN_UNIQUE_COST);
+      if (!spent.ok) {
+        return {
+          ok: false as const,
+          reason: spent.reason,
+          game: serializeGame(buyer),
+        };
+      }
+      trySpend(buyer.inventory, { food: TRAIN_FOOD_COST, coin: coinCost });
+      seller.inventory.amounts.coin += coinCost;
+      addArmy(buyer, lic.unitId, 1);
+      await this.write(sellerKey, sellerRec, seller);
+      await this.write(buyerKey, buyerRec, buyer);
+      return { ok: true as const, game: serializeGame(buyer) };
+    });
   }
 }
