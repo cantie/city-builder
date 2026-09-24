@@ -1,11 +1,18 @@
 import { customBuildingLabel } from '../src/core/customBuilding';
+import { fallbackInventNames } from '../src/core/customIds';
 import { loadLocalEnv } from './env';
 import type { FetchLike, ImageEnv } from './litellm';
 
+export type InventTrio = {
+  building: string;
+  resource: string;
+  unit: string;
+};
+
 const SYSTEM_PROMPT =
-  'You name city-builder buildings. Reply with only a short display name ' +
-  '(1–4 words) in the same language as the player description. ' +
-  'No quotes, no punctuation, no explanation.';
+  'You name a city-builder invention. Reply with JSON only, keys ' +
+  'building, resource, unit. Each value is 1–4 words in the same language ' +
+  'as the player description. No markdown, no explanation.';
 
 function chatContent(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null;
@@ -19,13 +26,48 @@ function chatContent(data: unknown): string | null {
   return typeof content === 'string' ? content : null;
 }
 
-export async function nameBuildingFromPrompt(
+function stripFences(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+}
+
+function parseTrioJson(raw: string | null): Partial<InventTrio> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(stripFences(raw)) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    const o = parsed as Record<string, unknown>;
+    return {
+      building: typeof o.building === 'string' ? o.building : undefined,
+      resource: typeof o.resource === 'string' ? o.resource : undefined,
+      unit: typeof o.unit === 'string' ? o.unit : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeTrio(prompt: string, parsed: Partial<InventTrio> | null): InventTrio {
+  const fallback = fallbackInventNames(prompt);
+  return {
+    building: customBuildingLabel(prompt, parsed?.building ?? fallback.building),
+    resource: customBuildingLabel(prompt, parsed?.resource ?? fallback.resource),
+    unit: customBuildingLabel(prompt, parsed?.unit ?? fallback.unit),
+  };
+}
+
+export async function nameInventTrio(
   prompt: string,
   env: ImageEnv = process.env,
   fetchFn: FetchLike = fetch,
-): Promise<string> {
+): Promise<InventTrio> {
   loadLocalEnv();
-  const fallback = customBuildingLabel(prompt);
+  const fallback = fallbackInventNames(prompt);
   const base = env.LITELLM_BASE_URL?.trim();
   const key = env.LITELLM_API_KEY?.trim();
   const model = env.LITELLM_CHAT_MODEL?.trim();
@@ -45,7 +87,7 @@ export async function nameBuildingFromPrompt(
       body: JSON.stringify({
         model,
         temperature: 0.4,
-        max_tokens: 24,
+        max_tokens: 80,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
@@ -58,9 +100,17 @@ export async function nameBuildingFromPrompt(
       return fallback;
     }
     const raw = chatContent(await res.json());
-    return customBuildingLabel(prompt, raw ?? undefined);
+    return sanitizeTrio(prompt, parseTrioJson(raw));
   } catch (err) {
     console.error('litellm name error', err);
     return fallback;
   }
+}
+
+export async function nameBuildingFromPrompt(
+  prompt: string,
+  env: ImageEnv = process.env,
+  fetchFn: FetchLike = fetch,
+): Promise<string> {
+  return (await nameInventTrio(prompt, env, fetchFn)).building;
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nameBuildingFromPrompt } from '../../server/nameBuilding';
+import { nameBuildingFromPrompt, nameInventTrio } from '../../server/nameBuilding';
 
 describe('nameBuildingFromPrompt', () => {
   afterEach(() => {
@@ -24,7 +24,14 @@ describe('nameBuildingFromPrompt', () => {
       expect(body.messages.at(-1)?.content).toContain('cozy noodle stall');
       return new Response(
         JSON.stringify({
-          choices: [{ message: { content: '"Noodle Stall"' } }],
+          choices: [
+            {
+              message: {
+                content:
+                  '{"building":"Noodle Stall","resource":"Broth","unit":"Cook"}',
+              },
+            },
+          ],
         }),
         { status: 200, headers: { 'Content-Type': 'application/json' } },
       );
@@ -34,6 +41,40 @@ describe('nameBuildingFromPrompt', () => {
       nameBuildingFromPrompt('a cozy noodle stall with lanterns', env, fetchFn),
     ).resolves.toBe('Noodle Stall');
     expect(fetchFn).toHaveBeenCalledOnce();
+  });
+
+  it('parses JSON trio and sanitizes names', async () => {
+    const fetchFn = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content:
+                    '{"building":"Noodle Stall","resource":"Broth","unit":"Cook"}',
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    );
+    await expect(
+      nameInventTrio('a cozy noodle stall', env, fetchFn),
+    ).resolves.toEqual({
+      building: 'Noodle Stall',
+      resource: 'Broth',
+      unit: 'Cook',
+    });
+  });
+
+  it('falls back to Ore/Troop when chat fails', async () => {
+    await expect(nameInventTrio('crystal bakery', {}, fetch)).resolves.toEqual({
+      building: 'crystal bakery',
+      resource: 'crystal bakery Ore',
+      unit: 'crystal bakery Troop',
+    });
   });
 
   it('falls back to a clipped prompt when chat config or the call fails', async () => {
