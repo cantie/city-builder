@@ -91,7 +91,11 @@ describe('PlayerStore', () => {
           if (calls === 1) throw new Error('image generation failed');
           return TINY_PNG;
         },
-        async () => 'Crystal Bakery',
+        async () => ({
+          building: 'Crystal Bakery',
+          resource: 'Crystal Ore',
+          unit: 'Crystal Troop',
+        }),
       );
       await store.login('Ada');
       await store.apply('Ada', {
@@ -112,9 +116,10 @@ describe('PlayerStore', () => {
       expect(ok.game.customBuildings?.some((b) => b.id === 'custom-1')).toBe(
         true,
       );
-      expect(ok.game.customBuildings?.find((b) => b.id === 'custom-1')?.label).toBe(
-        'Crystal Bakery',
-      );
+      const rec = ok.game.customBuildings!.find((b) => b.id === 'custom-1')!;
+      expect(rec.label).toBe('Crystal Bakery');
+      expect(rec.resourceLabel).toBe('Crystal Ore');
+      expect(rec.unitLabel).toBe('Crystal Troop');
       expect(ok.game.unlockedBlueprints).toContain('custom-1');
       const png = await store.readSprite('Ada', 'custom-1');
       expect(png?.equals(TINY_PNG)).toBe(true);
@@ -137,6 +142,65 @@ describe('PlayerStore', () => {
         forgotten.game.buildings.some((b) => b.typeId === 'custom-1'),
       ).toBe(false);
       expect(await store.readSprite('Ada', 'custom-1')).toBeNull();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('invents a trio then harvests and trains on the origin after catch-up', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-train-'));
+    try {
+      let now = 1_000;
+      const store = new PlayerStore(
+        dir,
+        registry,
+        upgrades,
+        () => now,
+        async () => TINY_PNG,
+        async () => ({
+          building: 'Crystal Bakery',
+          resource: 'Crystal Ore',
+          unit: 'Crystal Troop',
+        }),
+      );
+      await store.login('Ada');
+      await store.apply('Ada', {
+        op: 'place',
+        typeId: 'research_institute',
+        x: 0,
+        y: 0,
+      });
+      const invented = await store.invent('Ada', 'crystal bakery', 3, 3);
+      expect(invented.ok).toBe(true);
+      const rec = invented.game.customBuildings!.find((b) => b.id === 'custom-1')!;
+      expect(rec.unitLabel).toBe('Crystal Troop');
+      const placed = await store.apply('Ada', {
+        op: 'place',
+        typeId: 'custom-1',
+        x: 10,
+        y: 10,
+      });
+      expect(placed.ok).toBe(true);
+      const origin = placed.game.buildings.find((b) => b.typeId === 'custom-1')!;
+      now = 1_000 + TICK_INTERVAL_MS * 5;
+      const snap = await store.snapshot('Ada');
+      expect(
+        snap.game.buildings.find((b) => b.id === origin.id)?.uniquePending,
+      ).toBe(5);
+      const harvested = await store.apply('Ada', {
+        op: 'harvest',
+        buildingId: origin.id,
+      });
+      expect(harvested.ok).toBe(true);
+      expect(
+        harvested.game.buildings.find((b) => b.id === origin.id)?.exportStock,
+      ).toBe(5);
+      const trained = await store.apply('Ada', {
+        op: 'train',
+        buildingId: origin.id,
+      });
+      expect(trained.ok).toBe(true);
+      expect(trained.game.army?.[rec.unitId]).toBe(1);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

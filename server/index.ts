@@ -134,6 +134,18 @@ app.post('/api/harvest', async (c) => {
   );
 });
 
+app.post('/api/train', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  const body = (await c.req.json()) as { buildingId?: string };
+  if (typeof body.buildingId !== 'string') {
+    return c.json({ ok: false, reason: 'invalid body' }, 400);
+  }
+  return c.json(
+    await store.apply(name, { op: 'train', buildingId: body.buildingId }),
+  );
+});
+
 app.post('/api/research', async (c) => {
   const name = playerOf(c);
   if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);

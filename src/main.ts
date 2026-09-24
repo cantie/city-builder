@@ -144,6 +144,7 @@ function boot(initial: GameState): void {
     },
     commands: {
       harvest: async (id) => applyResult(await api.harvest(id)),
+      train: async (id) => applyResult(await api.train(id)),
       research: async (id) => applyResult(await api.research(id)),
       upgrade: async (id) => applyResult(await api.upgrade(id)),
       demolish: async (id) => applyResult(await api.demolish(id)),

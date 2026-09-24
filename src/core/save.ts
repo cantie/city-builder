@@ -97,6 +97,7 @@ export function deserializeGame(
   data: unknown,
   registry: ContentRegistry,
   upgrades: UpgradesConfig = defaultUpgrades,
+  owner = 'local',
 ): GameState | null {
   try {
     const parsed =
@@ -109,7 +110,7 @@ export function deserializeGame(
       return null;
     }
 
-    const customs = normalizeCustomBuildings(s.customBuildings);
+    const customs = normalizeCustomBuildings(s.customBuildings, owner);
     const registryWithCustom = withCustomBuildings(registry, customs);
     const grid = new Grid();
     const buildings: BuildingInstance[] = (s.buildings as BuildingInstance[]).map(

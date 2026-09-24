@@ -52,6 +52,10 @@ export class GameApi {
     return this.post('/api/harvest', { buildingId });
   }
 
+  train(buildingId: string): Promise<ApiResult> {
+    return this.post('/api/train', { buildingId });
+  }
+
   research(researchId: string): Promise<ApiResult> {
     return this.post('/api/research', { researchId });
   }

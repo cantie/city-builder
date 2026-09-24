@@ -14,6 +14,7 @@ import {
   type SidebarPanel,
 } from '@/phaser/hud/hudLogic';
 import { INVENT_COST } from '@/core/customBuilding';
+import { isOriginCustom } from '@/core/customEconomy';
 import type { ContentRegistry } from '@/core/registry';
 import type { BuildingTypeId, GameState, ResourceId } from '@/core/types';
 import defaultUpgradesJson from '@/data/upgrades.json';
@@ -35,6 +36,7 @@ export interface SidebarDeps {
   setSelectedBuildingId: (id: string | null) => void;
   commands: {
     harvest: (buildingId: string) => Promise<SidebarCommandResult>;
+    train: (buildingId: string) => Promise<SidebarCommandResult>;
     research: (researchId: string) => Promise<SidebarCommandResult>;
     upgrade: (buildingId: string) => Promise<SidebarCommandResult>;
     demolish: (buildingId: string) => Promise<SidebarCommandResult>;
@@ -462,6 +464,22 @@ export class Sidebar {
       }
     }
 
+    const originRec = (state.customBuildings ?? []).find(
+      (c) => c.id === building.typeId,
+    );
+    if (originRec) {
+      parts.push(
+        `<div style="margin-top:8px">Resource: <strong>${originRec.resourceLabel}</strong></div>`,
+      );
+      parts.push(`<div>Unit: <strong>${originRec.unitLabel}</strong></div>`);
+      parts.push(
+        `<div style="margin-top:6px">Unique pending: <strong>${originRec.resourceLabel} × ${building.uniquePending ?? 0}</strong></div>`,
+      );
+      parts.push(
+        `<div>Export stock: <strong>${originRec.resourceLabel} × ${building.exportStock ?? 0}</strong></div>`,
+      );
+    }
+
     if (building.typeId === 'main_house') {
       parts.push(
         `<div style="margin-top:8px" class="muted">City HQ — cannot demolish. Other buildings cannot exceed this level.</div>`,
@@ -513,6 +531,33 @@ export class Sidebar {
         });
       });
       this.selectionBody.appendChild(harvestBtn);
+    }
+
+    if (isOriginCustom(state, building)) {
+      const harvestBtn = document.createElement('button');
+      harvestBtn.type = 'button';
+      harvestBtn.textContent = 'Harvest';
+      harvestBtn.disabled = (building.uniquePending ?? 0) <= 0;
+      harvestBtn.style.marginTop = '8px';
+      harvestBtn.addEventListener('click', () => {
+        void this.deps.commands.harvest(building.id).then((result) => {
+          if (!result.ok) this.flashStatus(result.reason ?? '');
+          this.refresh();
+        });
+      });
+      this.selectionBody.appendChild(harvestBtn);
+
+      const trainBtn = document.createElement('button');
+      trainBtn.type = 'button';
+      trainBtn.textContent = `Train ${originRec?.unitLabel ?? 'unit'}`;
+      trainBtn.style.marginTop = '8px';
+      trainBtn.addEventListener('click', () => {
+        void this.deps.commands.train(building.id).then((result) => {
+          if (!result.ok) this.flashStatus(result.reason ?? '');
+          this.refresh();
+        });
+      });
+      this.selectionBody.appendChild(trainBtn);
     }
 
     if (def.demolishable && building.typeId !== 'main_house') {

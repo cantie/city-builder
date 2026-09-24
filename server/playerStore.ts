@@ -19,9 +19,10 @@ import {
   validateInventInput,
   withCustomBuildings,
 } from '../src/core/customBuilding';
+import { trainAtOrigin } from '../src/core/customEconomy';
 import { harvestBuilding } from '../src/core/farm';
 import { trySpend } from '../src/core/inventory';
-import { nameBuildingFromPrompt } from './nameBuilding';
+import { nameInventTrio, type InventTrio } from './nameBuilding';
 import {
   hasResearchInstitute,
   startResearch,
@@ -61,7 +62,8 @@ export type PlayerAction =
   | { op: 'research'; researchId: string }
   | { op: 'upgrade'; buildingId: string }
   | { op: 'new-game' }
-  | { op: 'forget-building'; typeId: BuildingTypeId };
+  | { op: 'forget-building'; typeId: BuildingTypeId }
+  | { op: 'train'; buildingId: string };
 
 export class PlayerStore {
   private locks = new Map<string, Promise<void>>();
@@ -72,7 +74,7 @@ export class PlayerStore {
     private upgrades: UpgradesConfig,
     private now: () => number = () => Date.now(),
     private generateImage: GenerateImage = createImageGenerator(),
-    private nameBuilding: (prompt: string) => Promise<string> = nameBuildingFromPrompt,
+    private nameTrio: (prompt: string) => Promise<InventTrio> = nameInventTrio,
   ) {}
 
   async login(name: string): Promise<CommandResult> {
@@ -144,13 +146,13 @@ export class PlayerStore {
         }
       }
       let png: Buffer;
-      let label: string;
+      let names: InventTrio;
       try {
-        [png, label] = await Promise.all([
+        [png, names] = await Promise.all([
           this.generateImage(
             composeInventPrompt(parsed.prompt, parsed.footprint),
           ),
-          this.nameBuilding(parsed.prompt),
+          this.nameTrio(parsed.prompt),
         ]);
       } catch (err) {
         const reason =
@@ -172,7 +174,8 @@ export class PlayerStore {
         prompt: parsed.prompt,
         footprint: parsed.footprint,
         sprite: `/api/sprites/${id}`,
-        label,
+        owner: key,
+        names,
       });
       await this.writeSprite(key, id, png);
       await this.write(key, rec, state);
@@ -237,6 +240,8 @@ export class PlayerStore {
         state.availableResearch = fresh.availableResearch;
         state.activeResearch = fresh.activeResearch;
         state.customBuildings = fresh.customBuildings ?? [];
+        state.army = {};
+        state.licenses = [];
         return { ok: true };
       }
       case 'place':
@@ -273,13 +278,20 @@ export class PlayerStore {
         );
       case 'forget-building':
         return forgetCustomBuilding(state, registry, action.typeId);
+      case 'train':
+        return trainAtOrigin(state, action.buildingId);
       default:
         return { ok: false, reason: 'unknown action' };
     }
   }
 
   private hydrate(rec: PlayerRecord): GameState {
-    const state = deserializeGame(rec.game, this.registry, this.upgrades);
+    const state = deserializeGame(
+      rec.game,
+      this.registry,
+      this.upgrades,
+      rec.name,
+    );
     if (!state) {
       return createNewGame(this.registry, this.upgrades);
     }
