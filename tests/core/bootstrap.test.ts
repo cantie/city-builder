@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRegistry } from '@/core/buildings';
-import { createNewGame, resetToNewGame } from '@/core/bootstrap';
+import { createNewGame, ensureStartingCoin, resetToNewGame } from '@/core/bootstrap';
 import {
   MemoryStorage,
   loadGame,
@@ -78,7 +78,7 @@ describe('createNewGame', () => {
     expect(state.grid.getOccupant({ x: 20, y: 23 })).toBe('warehouse-1');
     expect(state.grid.getOccupant({ x: 22, y: 25 })).toBe('warehouse-1');
     expect(state.inventory.softCap).toBe(100);
-    expect(state.inventory.amounts.coin).toBe(0);
+    expect(state.inventory.amounts.coin).toBe(100);
     expect(state.inventory.amounts.food).toBeGreaterThanOrEqual(10);
     expect(state.unlockedBlueprints).toEqual(
       expect.arrayContaining([
@@ -91,6 +91,21 @@ describe('createNewGame', () => {
     expect(state.availableResearch).toContain('tier1_wood');
     const main = state.buildings.find((b) => b.typeId === 'main_house')!;
     expect(main.level).toBe(1);
+  });
+});
+
+describe('ensureStartingCoin', () => {
+  it('grants 100 coin only when the save still has none', () => {
+    const registry = createRegistry(buildings, recipes, researchDefs);
+    const empty = createNewGame(registry, upgrades);
+    empty.inventory.amounts.coin = 0;
+    expect(ensureStartingCoin(empty)).toBe(true);
+    expect(empty.inventory.amounts.coin).toBe(100);
+    expect(ensureStartingCoin(empty)).toBe(false);
+    expect(empty.inventory.amounts.coin).toBe(100);
+    empty.inventory.amounts.coin = 15;
+    expect(ensureStartingCoin(empty)).toBe(false);
+    expect(empty.inventory.amounts.coin).toBe(15);
   });
 });
 

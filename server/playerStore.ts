@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { catchUpTicks } from '../src/core/catchUp';
 import {
   createNewGame,
+  ensureStartingCoin,
   ensureWarehouseMigrated,
 } from '../src/core/bootstrap';
 import {
@@ -464,6 +465,7 @@ export class PlayerStore {
     if (ensureWarehouseMigrated(state, registry, this.upgrades)) {
       /* persist via caller */
     }
+    ensureStartingCoin(state);
     syncCompletedResearchUnlocks(state, registry);
     const now = this.now();
     const caught = catchUpTicks(state, this.registry, rec.lastTickAt, now);

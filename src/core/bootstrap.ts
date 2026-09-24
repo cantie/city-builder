@@ -12,6 +12,7 @@ const defaultUpgrades = defaultUpgradesJson as UpgradesConfig;
 
 export const MAIN_HOUSE_ORIGIN = { x: 23, y: 23 };
 export const WAREHOUSE_ORIGIN = { x: 20, y: 23 };
+export const STARTING_COIN = 100;
 
 /**
  * New game: main house 3×3 near map center, warehouse 3×3 adjacent on the west.
@@ -28,7 +29,7 @@ export function createNewGame(
       food: 20,
       wood: 30,
       stone: 20,
-      coin: 0,
+      coin: STARTING_COIN,
     }),
     unlockedBlueprints: [
       'main_house',
@@ -76,6 +77,13 @@ export function createNewGame(
 
   refreshInventorySoftCap(state, upgrades);
   return state;
+}
+
+/** Old saves started at 0 coin — grant the starting kit once they still have none. */
+export function ensureStartingCoin(state: GameState): boolean {
+  if (state.inventory.amounts.coin > 0) return false;
+  state.inventory.amounts.coin = STARTING_COIN;
+  return true;
 }
 
 /**
