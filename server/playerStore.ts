@@ -11,6 +11,7 @@ import {
   placeBuilding,
 } from '../src/core/buildings';
 import {
+  DEFAULT_EXPORT_PRICE,
   INVENT_COST,
   applyInventedBuilding,
   composeInventPrompt,
@@ -20,9 +21,13 @@ import {
   withCustomBuildings,
 } from '../src/core/customBuilding';
 import { trainAtOrigin } from '../src/core/customEconomy';
+import { parseCustomSlot, sharedCustomTypeId } from '../src/core/customIds';
 import { harvestBuilding } from '../src/core/farm';
 import { trySpend } from '../src/core/inventory';
+import { withLicenses } from '../src/core/licenses';
+import { applyBuy, validateList } from '../src/core/market';
 import { nameInventTrio, type InventTrio } from './nameBuilding';
+import { MarketStore } from './marketStore';
 import {
   hasResearchInstitute,
   startResearch,
@@ -67,6 +72,7 @@ export type PlayerAction =
 
 export class PlayerStore {
   private locks = new Map<string, Promise<void>>();
+  private market: MarketStore;
 
   constructor(
     private dir: string,
@@ -75,7 +81,9 @@ export class PlayerStore {
     private now: () => number = () => Date.now(),
     private generateImage: GenerateImage = createImageGenerator(),
     private nameTrio: (prompt: string) => Promise<InventTrio> = nameInventTrio,
-  ) {}
+  ) {
+    this.market = new MarketStore(join(this.dir, '..', 'market'));
+  }
 
   async login(name: string): Promise<CommandResult> {
     const key = normalizePlayerName(name);
@@ -209,6 +217,10 @@ export class PlayerStore {
       const result = this.runAction(state, action);
       if (action.op === 'forget-building' && result.ok) {
         await this.deleteSprite(key, action.typeId);
+        await this.market.removeOwnerSlot(key, String(action.typeId));
+      }
+      if (action.op === 'new-game' && result.ok) {
+        await this.market.removeOwnerAll(key);
       }
       await this.write(key, rec, state);
       if (!result.ok) {
@@ -219,7 +231,148 @@ export class PlayerStore {
   }
 
   private liveRegistry(state: GameState): ContentRegistry {
-    return withCustomBuildings(this.registry, state.customBuildings);
+    return withLicenses(
+      withCustomBuildings(this.registry, state.customBuildings),
+      state.licenses,
+    );
+  }
+
+  async catalog() {
+    return this.market.all();
+  }
+
+  async listOnMarket(
+    name: string,
+    typeId: BuildingTypeId,
+    price: number,
+  ): Promise<CommandResult> {
+    const key = normalizePlayerName(name);
+    if (!key) {
+      return {
+        ok: false,
+        reason: 'invalid player name',
+        game: serializeGame(createNewGame(this.registry, this.upgrades)),
+      };
+    }
+    return this.withLock(key, async () => {
+      const rec = await this.readOrCreate(key);
+      const state = this.hydrate(rec);
+      this.catchUpAndMigrate(state, rec);
+      const checked = validateList(state, typeId, price);
+      if (!checked.ok) {
+        return { ok: false as const, reason: checked.reason, game: serializeGame(state) };
+      }
+      const slot = parseCustomSlot(String(typeId));
+      const custom = (state.customBuildings ?? []).find((c) => c.id === typeId);
+      if (!slot || !custom) {
+        return { ok: false as const, reason: 'need origin', game: serializeGame(state) };
+      }
+      const shared = sharedCustomTypeId(key, slot);
+      await this.market.upsert({
+        typeId: shared,
+        owner: key,
+        slot: `custom-${slot}`,
+        price,
+        listedAt: this.now(),
+        label: custom.label,
+        resourceLabel: custom.resourceLabel,
+        unitLabel: custom.unitLabel,
+        sprite: `/api/market/sprites/${shared}`,
+      });
+      await this.write(key, rec, state);
+      return { ok: true as const, game: serializeGame(state) };
+    });
+  }
+
+  async unlistFromMarket(
+    name: string,
+    typeId: BuildingTypeId,
+  ): Promise<CommandResult> {
+    const key = normalizePlayerName(name);
+    if (!key) {
+      return {
+        ok: false,
+        reason: 'invalid player name',
+        game: serializeGame(createNewGame(this.registry, this.upgrades)),
+      };
+    }
+    return this.withLock(key, async () => {
+      const rec = await this.readOrCreate(key);
+      const state = this.hydrate(rec);
+      this.catchUpAndMigrate(state, rec);
+      const slot = parseCustomSlot(String(typeId));
+      if (slot) {
+        await this.market.removeOwnerSlot(key, `custom-${slot}`);
+      } else {
+        await this.market.unlist(String(typeId));
+      }
+      await this.write(key, rec, state);
+      return { ok: true as const, game: serializeGame(state) };
+    });
+  }
+
+  async buyListing(name: string, typeId: string): Promise<CommandResult> {
+    const key = normalizePlayerName(name);
+    if (!key) {
+      return {
+        ok: false,
+        reason: 'invalid player name',
+        game: serializeGame(createNewGame(this.registry, this.upgrades)),
+      };
+    }
+    return this.withLock(key, async () => {
+      const rec = await this.readOrCreate(key);
+      const state = this.hydrate(rec);
+      this.catchUpAndMigrate(state, rec);
+      const listing = await this.market.get(typeId);
+      if (!listing) {
+        return { ok: false as const, reason: 'not listed', game: serializeGame(state) };
+      }
+      const result = applyBuy(state, listing, key);
+      await this.write(key, rec, state);
+      return result.ok
+        ? { ok: true as const, game: serializeGame(state) }
+        : { ok: false as const, reason: result.reason, game: serializeGame(state) };
+    });
+  }
+
+  async setExport(
+    name: string,
+    typeId: BuildingTypeId,
+    enabled: boolean,
+    price?: number,
+  ): Promise<CommandResult> {
+    const key = normalizePlayerName(name);
+    if (!key) {
+      return {
+        ok: false,
+        reason: 'invalid player name',
+        game: serializeGame(createNewGame(this.registry, this.upgrades)),
+      };
+    }
+    return this.withLock(key, async () => {
+      const rec = await this.readOrCreate(key);
+      const state = this.hydrate(rec);
+      this.catchUpAndMigrate(state, rec);
+      const custom = (state.customBuildings ?? []).find((c) => c.id === typeId);
+      if (!custom) {
+        return { ok: false as const, reason: 'need origin', game: serializeGame(state) };
+      }
+      custom.exportEnabled = enabled;
+      if (typeof price === 'number') {
+        custom.exportPrice = Math.min(20, Math.max(1, Math.round(price)));
+      } else if (typeof custom.exportPrice !== 'number') {
+        custom.exportPrice = DEFAULT_EXPORT_PRICE;
+      }
+      await this.write(key, rec, state);
+      return { ok: true as const, game: serializeGame(state) };
+    });
+  }
+
+  async readMarketSprite(typeId: string): Promise<Buffer | null> {
+    const m = /^custom-([a-z0-9_-]+)-([123])$/.exec(typeId);
+    if (!m) return null;
+    return this.readSprite(m[1]!, `custom-${m[2]!}`);
   }
 
   private runAction(

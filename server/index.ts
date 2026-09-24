@@ -200,6 +200,71 @@ app.post('/api/forget-building', async (c) => {
   );
 });
 
+app.post('/api/export', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  const body = (await c.req.json()) as {
+    typeId?: string;
+    enabled?: boolean;
+    price?: number;
+  };
+  if (typeof body.typeId !== 'string' || typeof body.enabled !== 'boolean') {
+    return c.json({ ok: false, reason: 'invalid body' }, 400);
+  }
+  return c.json(
+    await store.setExport(name, body.typeId, body.enabled, body.price),
+  );
+});
+
+app.post('/api/market/list', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  const body = (await c.req.json()) as { typeId?: string; price?: number };
+  if (typeof body.typeId !== 'string' || typeof body.price !== 'number') {
+    return c.json({ ok: false, reason: 'invalid body' }, 400);
+  }
+  return c.json(await store.listOnMarket(name, body.typeId, body.price));
+});
+
+app.post('/api/market/unlist', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  const body = (await c.req.json()) as { typeId?: string };
+  if (typeof body.typeId !== 'string') {
+    return c.json({ ok: false, reason: 'invalid body' }, 400);
+  }
+  return c.json(await store.unlistFromMarket(name, body.typeId));
+});
+
+app.get('/api/market', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  return c.json({ ok: true, listings: await store.catalog() });
+});
+
+app.post('/api/market/buy', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  const body = (await c.req.json()) as { typeId?: string };
+  if (typeof body.typeId !== 'string') {
+    return c.json({ ok: false, reason: 'invalid body' }, 400);
+  }
+  return c.json(await store.buyListing(name, body.typeId));
+});
+
+app.get('/api/market/sprites/:typeId', async (c) => {
+  const name = playerOf(c);
+  if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);
+  const png = await store.readMarketSprite(c.req.param('typeId'));
+  if (!png) return c.json({ ok: false, reason: 'not found' }, 404);
+  return new Response(new Uint8Array(png), {
+    headers: {
+      'Content-Type': 'image/png',
+      'Cache-Control': 'no-store',
+    },
+  });
+});
+
 app.get('/api/sprites/:id', async (c) => {
   const name = playerOf(c);
   if (!name) return c.json({ ok: false, reason: 'not logged in' }, 401);

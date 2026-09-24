@@ -5,9 +5,11 @@ import {
   sharedResourceId,
   sharedUnitId,
 } from './customIds';
+import { toLicenseDef } from './licenses';
 import type { ContentRegistry } from './registry';
 import type {
   BuildingDef,
+  BuildingLicense,
   BuildingTypeId,
   CustomBuilding,
   Footprint,
@@ -147,6 +149,7 @@ export function withCustomBuildings(
 export function syncCustomRegistry(
   registry: ContentRegistry,
   customs: CustomBuilding[] | undefined,
+  licenses?: BuildingLicense[],
 ): void {
   for (const id of [...registry.buildings.keys()]) {
     if (String(id).startsWith('custom-')) {
@@ -155,6 +158,9 @@ export function syncCustomRegistry(
   }
   for (const rec of customs ?? []) {
     registry.buildings.set(rec.id, toCustomBuildingDef(rec));
+  }
+  for (const license of licenses ?? []) {
+    registry.buildings.set(license.typeId, toLicenseDef(license));
   }
 }
 

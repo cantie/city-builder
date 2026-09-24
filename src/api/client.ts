@@ -76,6 +76,38 @@ export class GameApi {
     return this.post('/api/forget-building', { typeId });
   }
 
+  setExport(
+    typeId: BuildingTypeId,
+    enabled: boolean,
+    price?: number,
+  ): Promise<ApiResult> {
+    return this.post('/api/export', { typeId, enabled, price });
+  }
+
+  listOnMarket(typeId: BuildingTypeId, price: number): Promise<ApiResult> {
+    return this.post('/api/market/list', { typeId, price });
+  }
+
+  unlistFromMarket(typeId: BuildingTypeId): Promise<ApiResult> {
+    return this.post('/api/market/unlist', { typeId });
+  }
+
+  async marketCatalog(): Promise<{
+    ok: boolean;
+    listings: import('@/core/market').MarketListing[];
+  }> {
+    const res = await fetch('/api/market', { credentials: 'include' });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      listings?: import('@/core/market').MarketListing[];
+    };
+    return { ok: data.ok === true, listings: data.listings ?? [] };
+  }
+
+  buyListing(typeId: string): Promise<ApiResult> {
+    return this.post('/api/market/buy', { typeId });
+  }
+
   private post(path: string, body: unknown): Promise<ApiResult> {
     return this.request(path, {
       method: 'POST',
@@ -88,7 +120,11 @@ export class GameApi {
     const res = await fetch(path, { ...init, credentials: 'include' });
     const data = (await res.json()) as WireResult;
     if (data.game) {
-      syncCustomRegistry(this.registry, data.game.customBuildings);
+      syncCustomRegistry(
+        this.registry,
+        data.game.customBuildings,
+        data.game.licenses,
+      );
     }
     const state = data.game
       ? deserializeGame(data.game, this.registry, this.upgrades)

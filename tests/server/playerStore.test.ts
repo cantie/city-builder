@@ -205,4 +205,74 @@ describe('PlayerStore', () => {
       await rm(dir, { recursive: true, force: true });
     }
   });
+
+  it('lists a blueprint so another player can buy and place a replica', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'cb-market-'));
+    try {
+      const store = new PlayerStore(
+        dir,
+        registry,
+        upgrades,
+        () => 1_000,
+        async () => TINY_PNG,
+        async () => ({
+          building: 'Crystal Bakery',
+          resource: 'Crystal Ore',
+          unit: 'Crystal Troop',
+        }),
+      );
+      await store.login('Ada');
+      await store.apply('Ada', {
+        op: 'place',
+        typeId: 'research_institute',
+        x: 0,
+        y: 0,
+      });
+      await store.invent('Ada', 'crystal bakery', 3, 3);
+      const placed = await store.apply('Ada', {
+        op: 'place',
+        typeId: 'custom-1',
+        x: 10,
+        y: 10,
+      });
+      expect(placed.ok).toBe(true);
+      const listed = await store.listOnMarket('Ada', 'custom-1', 20);
+      expect(listed.ok).toBe(true);
+
+      await store.login('Bob');
+      const catalog = await store.catalog();
+      expect(catalog.some((l) => l.typeId === 'custom-ada-1')).toBe(true);
+
+      const bobPath = join(dir, 'bob.json');
+      const { readFile, writeFile } = await import('node:fs/promises');
+      const rec = JSON.parse(await readFile(bobPath, 'utf8')) as {
+        game: { inventory: { amounts: { coin: number } } };
+      };
+      rec.game.inventory.amounts.coin = 20;
+      await writeFile(bobPath, JSON.stringify(rec));
+
+      const bought = await store.buyListing('Bob', 'custom-ada-1');
+      expect(bought.ok).toBe(true);
+      expect(bought.game.licenses?.some((l) => l.typeId === 'custom-ada-1')).toBe(
+        true,
+      );
+      expect(bought.game.customBuildings ?? []).toHaveLength(0);
+      expect(bought.game.unlockedBlueprints).toContain('custom-ada-1');
+
+      const replica = await store.apply('Bob', {
+        op: 'place',
+        typeId: 'custom-ada-1',
+        x: 10,
+        y: 10,
+      });
+      expect(replica.ok).toBe(true);
+      expect(
+        replica.game.buildings.some((b) => b.typeId === 'custom-ada-1'),
+      ).toBe(true);
+      const ada = await store.snapshot('Ada');
+      expect(ada.game.buildings.some((b) => b.typeId === 'custom-1')).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
 });

@@ -1,6 +1,7 @@
 import { uniquifyBuildingIds } from './buildings';
 import { Grid, findPlaceableOrigin } from './grid';
 import { normalizeCustomBuildings, withCustomBuildings } from './customBuilding';
+import { withLicenses } from './licenses';
 import type { ContentRegistry } from './registry';
 import type {
   ActiveResearch,
@@ -111,7 +112,10 @@ export function deserializeGame(
     }
 
     const customs = normalizeCustomBuildings(s.customBuildings, owner);
-    const registryWithCustom = withCustomBuildings(registry, customs);
+    const registryWithCustom = withLicenses(
+      withCustomBuildings(registry, customs),
+      s.licenses,
+    );
     const grid = new Grid();
     const buildings: BuildingInstance[] = (s.buildings as BuildingInstance[]).map(
       (b) => {
