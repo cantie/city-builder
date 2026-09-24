@@ -48,7 +48,7 @@ import {
 } from '../src/core/save';
 import { normalizePlayerName } from '../src/core/playerName';
 import type { ContentRegistry } from '../src/core/registry';
-import type { BuildingTypeId, GameState } from '../src/core/types';
+import type { BuildingTypeId, GameState, ReplicaStatus } from '../src/core/types';
 import {
   IMAGE_GEN_FAILED,
   MISSING_IMAGE_KEY,
@@ -106,7 +106,7 @@ export class PlayerStore {
       const state = this.hydrate(rec);
       this.catchUpAndMigrate(state, rec);
       await this.write(key, rec, state);
-      return { ok: true as const, game: serializeGame(state) };
+      return { ok: true as const, game: await this.dump(state) };
     });
   }
 
@@ -134,13 +134,13 @@ export class PlayerStore {
       this.catchUpAndMigrate(state, rec);
       const parsed = validateInventInput(prompt, width, height);
       if (!parsed.ok) {
-        return { ok: false as const, reason: parsed.reason, game: serializeGame(state) };
+        return { ok: false as const, reason: parsed.reason, game: await this.dump(state) };
       }
       if (!hasResearchInstitute(state)) {
         return {
           ok: false as const,
           reason: 'need research institute',
-          game: serializeGame(state),
+          game: await this.dump(state),
         };
       }
       const id = nextCustomBuildingId(state.customBuildings ?? []);
@@ -148,7 +148,7 @@ export class PlayerStore {
         return {
           ok: false as const,
           reason: 'custom building limit',
-          game: serializeGame(state),
+          game: await this.dump(state),
         };
       }
       for (const resId of Object.keys(INVENT_COST) as (keyof typeof INVENT_COST)[]) {
@@ -156,7 +156,7 @@ export class PlayerStore {
           return {
             ok: false as const,
             reason: 'cannot afford',
-            game: serializeGame(state),
+            game: await this.dump(state),
           };
         }
       }
@@ -174,13 +174,13 @@ export class PlayerStore {
           err instanceof Error && err.message === MISSING_IMAGE_KEY
             ? MISSING_IMAGE_KEY
             : IMAGE_GEN_FAILED;
-        return { ok: false as const, reason, game: serializeGame(state) };
+        return { ok: false as const, reason, game: await this.dump(state) };
       }
       if (!trySpend(state.inventory, INVENT_COST)) {
         return {
           ok: false as const,
           reason: 'cannot afford',
-          game: serializeGame(state),
+          game: await this.dump(state),
         };
       }
       const live = withCustomBuildings(this.registry, state.customBuildings);
@@ -194,7 +194,7 @@ export class PlayerStore {
       });
       await this.writeSprite(key, id, png);
       await this.write(key, rec, state);
-      return { ok: true as const, game: serializeGame(state) };
+      return { ok: true as const, game: await this.dump(state) };
     });
   }
 
@@ -234,9 +234,9 @@ export class PlayerStore {
       }
       await this.write(key, rec, state);
       if (!result.ok) {
-        return { ok: false, reason: result.reason, game: serializeGame(state) };
+        return { ok: false, reason: result.reason, game: await this.dump(state) };
       }
-      return { ok: true, game: serializeGame(state) };
+      return { ok: true, game: await this.dump(state) };
     });
   }
 
@@ -270,12 +270,12 @@ export class PlayerStore {
       this.catchUpAndMigrate(state, rec);
       const checked = validateList(state, typeId, price);
       if (!checked.ok) {
-        return { ok: false as const, reason: checked.reason, game: serializeGame(state) };
+        return { ok: false as const, reason: checked.reason, game: await this.dump(state) };
       }
       const slot = parseCustomSlot(String(typeId));
       const custom = (state.customBuildings ?? []).find((c) => c.id === typeId);
       if (!slot || !custom) {
-        return { ok: false as const, reason: 'need origin', game: serializeGame(state) };
+        return { ok: false as const, reason: 'need origin', game: await this.dump(state) };
       }
       const shared = sharedCustomTypeId(key, slot);
       await this.market.upsert({
@@ -290,7 +290,7 @@ export class PlayerStore {
         sprite: `/api/market/sprites/${shared}`,
       });
       await this.write(key, rec, state);
-      return { ok: true as const, game: serializeGame(state) };
+      return { ok: true as const, game: await this.dump(state) };
     });
   }
 
@@ -317,7 +317,7 @@ export class PlayerStore {
         await this.market.unlist(String(typeId));
       }
       await this.write(key, rec, state);
-      return { ok: true as const, game: serializeGame(state) };
+      return { ok: true as const, game: await this.dump(state) };
     });
   }
 
@@ -336,13 +336,13 @@ export class PlayerStore {
       this.catchUpAndMigrate(state, rec);
       const listing = await this.market.get(typeId);
       if (!listing) {
-        return { ok: false as const, reason: 'not listed', game: serializeGame(state) };
+        return { ok: false as const, reason: 'not listed', game: await this.dump(state) };
       }
       const result = applyBuy(state, listing, key);
       await this.write(key, rec, state);
       return result.ok
-        ? { ok: true as const, game: serializeGame(state) }
-        : { ok: false as const, reason: result.reason, game: serializeGame(state) };
+        ? { ok: true as const, game: await this.dump(state) }
+        : { ok: false as const, reason: result.reason, game: await this.dump(state) };
     });
   }
 
@@ -366,7 +366,7 @@ export class PlayerStore {
       this.catchUpAndMigrate(state, rec);
       const custom = (state.customBuildings ?? []).find((c) => c.id === typeId);
       if (!custom) {
-        return { ok: false as const, reason: 'need origin', game: serializeGame(state) };
+        return { ok: false as const, reason: 'need origin', game: await this.dump(state) };
       }
       custom.exportEnabled = enabled;
       if (typeof price === 'number') {
@@ -375,7 +375,7 @@ export class PlayerStore {
         custom.exportPrice = DEFAULT_EXPORT_PRICE;
       }
       await this.write(key, rec, state);
-      return { ok: true as const, game: serializeGame(state) };
+      return { ok: true as const, game: await this.dump(state) };
     });
   }
 
@@ -506,9 +506,33 @@ export class PlayerStore {
       return {
         name,
         lastTickAt: this.now(),
-        game: serializeGame(state),
+        game: await this.dump(state),
       };
     }
+  }
+
+  private async dump(state: GameState): Promise<SerializedGame> {
+    const game = serializeGame(state);
+    const statuses: ReplicaStatus[] = [];
+    for (const lic of state.licenses ?? []) {
+      const sellerRec = await this.readOrCreate(lic.owner);
+      const seller = this.hydrate(sellerRec);
+      const rec = (seller.customBuildings ?? []).find((c) => c.id === lic.slot);
+      const origins = seller.buildings.filter((b) => b.typeId === lic.slot);
+      const stock = origins.reduce(
+        (sum, b) => sum + (b.exportStock ?? 0) + (b.uniquePending ?? 0),
+        0,
+      );
+      statuses.push({
+        typeId: lic.typeId,
+        exportEnabled: !!rec && rec.exportEnabled !== false,
+        stock,
+        exportPrice: rec?.exportPrice ?? 2,
+        abandoned: !rec,
+      });
+    }
+    game.replicaStatus = statuses;
+    return game;
   }
 
   private async write(

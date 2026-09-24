@@ -97,6 +97,14 @@ export interface ActiveResearch {
   remainingTicks: number;
 }
 
+export interface ReplicaStatus {
+  typeId: BuildingTypeId;
+  exportEnabled: boolean;
+  stock: number;
+  exportPrice: number;
+  abandoned: boolean;
+}
+
 export interface GameState {
   tick: number;
   grid: import('./grid').Grid;
@@ -110,4 +118,5 @@ export interface GameState {
   customBuildings?: CustomBuilding[];
   army?: Record<string, number>;
   licenses?: BuildingLicense[];
+  replicaStatus?: ReplicaStatus[];
 }

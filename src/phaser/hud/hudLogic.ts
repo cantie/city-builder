@@ -29,7 +29,7 @@ export function researchStartDisabledReason(
   return null;
 }
 
-export type SidebarPanel = 'inspect' | 'build' | 'research';
+export type SidebarPanel = 'inspect' | 'build' | 'research' | 'market';
 
 export function selectedBuildingTypeId(
   state: GameState,
@@ -41,7 +41,7 @@ export function selectedBuildingTypeId(
 
 export function nextSidebarPanel(input: {
   current: SidebarPanel;
-  action: 'toggle-build' | 'toggle-research' | 'sync-selection';
+  action: 'toggle-build' | 'toggle-research' | 'toggle-market' | 'sync-selection';
   selectedTypeId: string | null;
 }): SidebarPanel {
   if (input.action === 'toggle-build') {
@@ -50,9 +50,30 @@ export function nextSidebarPanel(input: {
   if (input.action === 'toggle-research') {
     return input.current === 'research' ? 'inspect' : 'research';
   }
+  if (input.action === 'toggle-market') {
+    return input.current === 'market' ? 'inspect' : 'market';
+  }
   if (input.selectedTypeId === 'research_institute') return 'research';
   if (input.selectedTypeId) return 'inspect';
   return input.current;
+}
+
+export function trainDisabledReason(input: {
+  kind: 'origin' | 'replica';
+  exportEnabled: boolean;
+  stock: number;
+  food: number;
+  coin: number;
+  price: number;
+}): string | null {
+  if (input.kind === 'replica' && !input.exportEnabled) return 'export disabled';
+  if (input.stock < 5) return 'out of stock';
+  if (input.kind === 'replica') {
+    if (input.food < 2 || input.coin < input.price * 5) return 'cannot afford';
+    return null;
+  }
+  if (input.food < 2) return 'cannot afford';
+  return null;
 }
 
 export function showNewGameButton(input: {

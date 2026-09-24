@@ -11,6 +11,7 @@ import type {
   CustomBuilding,
   GameState,
   InventoryState,
+  ReplicaStatus,
 } from './types';
 import {
   MemoryStorage,
@@ -41,6 +42,7 @@ export interface SerializedGame {
   customBuildings?: CustomBuilding[];
   army?: Record<string, number>;
   licenses?: BuildingLicense[];
+  replicaStatus?: ReplicaStatus[];
 }
 
 export function serializeGame(state: GameState): SerializedGame {
@@ -91,6 +93,7 @@ export function serializeGame(state: GameState): SerializedGame {
     })),
     army: { ...(state.army ?? {}) },
     licenses: (state.licenses ?? []).map((l) => ({ ...l })),
+    replicaStatus: (state.replicaStatus ?? []).map((s) => ({ ...s })),
   };
 }
 
@@ -189,6 +192,9 @@ export function deserializeGame(
       army: { ...(s.army ?? {}) },
       licenses: Array.isArray(s.licenses)
         ? s.licenses.map((l) => ({ ...l }))
+        : [],
+      replicaStatus: Array.isArray(s.replicaStatus)
+        ? s.replicaStatus.map((r) => ({ ...r }))
         : [],
     };
 

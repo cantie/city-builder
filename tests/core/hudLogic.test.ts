@@ -7,6 +7,7 @@ import {
   researchStartDisabledReason,
   nextSidebarPanel,
   showNewGameButton,
+  trainDisabledReason,
 } from '@/phaser/hud/hudLogic';
 import type { BuildingDef, GameState, ResearchDef } from '@/core/types';
 
@@ -144,6 +145,53 @@ describe('hudLogic', () => {
         selectedTypeId: null,
       }),
     ).toBe('build');
+  });
+
+  it('toggles market exclusive of build/research', () => {
+    expect(
+      nextSidebarPanel({
+        current: 'inspect',
+        action: 'toggle-market',
+        selectedTypeId: null,
+      }),
+    ).toBe('market');
+    expect(
+      nextSidebarPanel({
+        current: 'market',
+        action: 'toggle-market',
+        selectedTypeId: null,
+      }),
+    ).toBe('inspect');
+    expect(
+      nextSidebarPanel({
+        current: 'market',
+        action: 'toggle-build',
+        selectedTypeId: null,
+      }),
+    ).toBe('build');
+  });
+
+  it('disables replica train when export is down', () => {
+    expect(
+      trainDisabledReason({
+        kind: 'replica',
+        exportEnabled: false,
+        stock: 10,
+        food: 10,
+        coin: 100,
+        price: 2,
+      }),
+    ).toMatch(/export/i);
+    expect(
+      trainDisabledReason({
+        kind: 'replica',
+        exportEnabled: true,
+        stock: 0,
+        food: 10,
+        coin: 100,
+        price: 2,
+      }),
+    ).toMatch(/stock/i);
   });
 
   it('shows New game only while inspecting the main house', () => {

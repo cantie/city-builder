@@ -68,7 +68,17 @@ async function loadCustomSprites(
   if (!game) return;
   const scene = game.scene.getScene('Game') as Phaser.Scene | undefined;
   if (!scene?.load || !scene.textures) return;
-  for (const rec of state.customBuildings ?? []) {
+  const sprites = [
+    ...(state.customBuildings ?? []).map((rec) => ({
+      id: rec.id,
+      sprite: rec.sprite,
+    })),
+    ...(state.licenses ?? []).map((rec) => ({
+      id: rec.typeId,
+      sprite: rec.sprite,
+    })),
+  ];
+  for (const rec of sprites) {
     if (scene.textures.exists(rec.id)) continue;
     const res = await fetch(rec.sprite, { credentials: 'include' });
     if (!res.ok) continue;
@@ -145,6 +155,14 @@ function boot(initial: GameState): void {
     commands: {
       harvest: async (id) => applyResult(await api.harvest(id)),
       train: async (id) => applyResult(await api.train(id)),
+      setExport: async (typeId, enabled, price) =>
+        applyResult(await api.setExport(typeId, enabled, price)),
+      listOnMarket: async (typeId, price) =>
+        applyResult(await api.listOnMarket(typeId, price)),
+      unlistFromMarket: async (typeId) =>
+        applyResult(await api.unlistFromMarket(typeId)),
+      buyListing: async (typeId) => applyResult(await api.buyListing(typeId)),
+      marketCatalog: () => api.marketCatalog(),
       research: async (id) => applyResult(await api.research(id)),
       upgrade: async (id) => applyResult(await api.upgrade(id)),
       demolish: async (id) => applyResult(await api.demolish(id)),

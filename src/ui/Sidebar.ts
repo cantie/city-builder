@@ -11,10 +11,12 @@ import {
   nextSidebarPanel,
   selectedBuildingTypeId,
   showNewGameButton,
+  trainDisabledReason,
   type SidebarPanel,
 } from '@/phaser/hud/hudLogic';
 import { INVENT_COST } from '@/core/customBuilding';
 import { isOriginCustom } from '@/core/customEconomy';
+import { DEFAULT_LISTING_PRICE, type MarketListing } from '@/core/market';
 import type { ContentRegistry } from '@/core/registry';
 import type { BuildingTypeId, GameState, ResourceId } from '@/core/types';
 import defaultUpgradesJson from '@/data/upgrades.json';
@@ -37,6 +39,18 @@ export interface SidebarDeps {
   commands: {
     harvest: (buildingId: string) => Promise<SidebarCommandResult>;
     train: (buildingId: string) => Promise<SidebarCommandResult>;
+    setExport: (
+      typeId: BuildingTypeId,
+      enabled: boolean,
+      price?: number,
+    ) => Promise<SidebarCommandResult>;
+    listOnMarket: (
+      typeId: BuildingTypeId,
+      price: number,
+    ) => Promise<SidebarCommandResult>;
+    unlistFromMarket: (typeId: BuildingTypeId) => Promise<SidebarCommandResult>;
+    buyListing: (typeId: string) => Promise<SidebarCommandResult>;
+    marketCatalog: () => Promise<{ ok: boolean; listings: MarketListing[] }>;
     research: (researchId: string) => Promise<SidebarCommandResult>;
     upgrade: (buildingId: string) => Promise<SidebarCommandResult>;
     demolish: (buildingId: string) => Promise<SidebarCommandResult>;
@@ -97,6 +111,10 @@ export class Sidebar {
   private metaSection: HTMLElement;
   private actionBuildBtn: HTMLButtonElement;
   private actionResearchBtn: HTMLButtonElement;
+  private actionMarketBtn: HTMLButtonElement;
+  private marketSection: HTMLElement;
+  private marketBody: HTMLElement;
+  private listings: MarketListing[] = [];
 
   constructor(private deps: SidebarDeps) {
     this.upgrades = deps.upgrades ?? defaultUpgrades;
@@ -126,12 +144,27 @@ export class Sidebar {
     this.actionResearchBtn = document.getElementById(
       'action-research',
     ) as HTMLButtonElement;
+    this.actionMarketBtn = document.getElementById(
+      'action-market',
+    ) as HTMLButtonElement;
+    this.marketSection = document.getElementById('sidebar-market')!;
+    this.marketBody = document.getElementById('market-body')!;
 
     this.actionBuildBtn.addEventListener('click', () => {
       this.applyPanel(
         nextSidebarPanel({
           current: this.panel,
           action: 'toggle-build',
+          selectedTypeId: null,
+        }),
+      );
+    });
+
+    this.actionMarketBtn.addEventListener('click', () => {
+      this.applyPanel(
+        nextSidebarPanel({
+          current: this.panel,
+          action: 'toggle-market',
           selectedTypeId: null,
         }),
       );
@@ -211,13 +244,14 @@ export class Sidebar {
     this.renderResources(state);
     this.renderBuild(state);
     this.renderResearch(state);
+    this.renderMarket(state);
     this.renderSelection(state);
   }
 
   private applyPanel(panel: SidebarPanel): void {
     this.panel = panel;
     if (panel !== 'build') this.deps.setSelectedBlueprint(null);
-    if (panel === 'build') {
+    if (panel === 'build' || panel === 'market') {
       this.deps.setSelectedBuildingId(null);
       this.refresh();
       return;
@@ -261,10 +295,76 @@ export class Sidebar {
       </div>`,
       )
       .join('');
+    const armyBits = Object.entries(state.army ?? {})
+      .filter(([, n]) => n > 0)
+      .map(([unitId, n]) => {
+        const fromOrigin = (state.customBuildings ?? []).find(
+          (c) => c.unitId === unitId,
+        );
+        const fromLicense = (state.licenses ?? []).find((l) => l.unitId === unitId);
+        const label = fromOrigin?.unitLabel ?? fromLicense?.unitLabel ?? unitId;
+        return `${label} × ${n}`;
+      });
+    const armyLine =
+      armyBits.length > 0
+        ? `<div style="margin-top:6px">Army: <strong>${armyBits.join(', ')}</strong></div>`
+        : '';
     this.resourcesBody.innerHTML = `
       <div class="resource-row">${cells}</div>
       <div class="muted" style="margin-top:6px">Tick ${state.tick} · ${capNote}</div>
+      ${armyLine}
     `;
+  }
+
+  private renderMarket(state: GameState): void {
+    const show = this.panel === 'market';
+    this.marketSection.hidden = !show;
+    this.actionMarketBtn.classList.toggle('active', show);
+    this.actionMarketBtn.setAttribute('aria-pressed', String(show));
+    if (!show) return;
+    void this.deps.commands.marketCatalog().then((result) => {
+      if (this.panel !== 'market') return;
+      this.listings = result.listings;
+      this.marketBody.replaceChildren();
+      if (!result.ok || this.listings.length === 0) {
+        this.marketBody.className = 'muted';
+        this.marketBody.textContent = 'No listings yet';
+        return;
+      }
+      this.marketBody.className = '';
+      for (const listing of this.listings) {
+        const row = document.createElement('div');
+        row.style.marginBottom = '10px';
+        const img = document.createElement('img');
+        img.src = listing.sprite;
+        img.alt = listing.label;
+        img.width = 48;
+        img.height = 48;
+        const licensed = (state.licenses ?? []).some(
+          (l) => l.typeId === listing.typeId,
+        );
+        row.innerHTML = `
+          <div><strong>${listing.label}</strong> — ${listing.price} coin</div>
+          <div class="muted">${listing.resourceLabel} · ${listing.unitLabel} · ${listing.owner}</div>
+        `;
+        row.prepend(img);
+        const buy = document.createElement('button');
+        buy.type = 'button';
+        buy.textContent = licensed ? 'Owned' : 'Buy';
+        buy.disabled =
+          licensed || state.inventory.amounts.coin < listing.price;
+        if (!buy.disabled) {
+          buy.addEventListener('click', () => {
+            void this.deps.commands.buyListing(listing.typeId).then((r) => {
+              if (!r.ok) this.flashStatus(r.reason ?? '');
+              this.refresh();
+            });
+          });
+        }
+        row.appendChild(buy);
+        this.marketBody.appendChild(row);
+      }
+    });
   }
 
   private renderBuild(state: GameState): void {
@@ -480,6 +580,28 @@ export class Sidebar {
       );
     }
 
+    const license = (state.licenses ?? []).find((l) => l.typeId === building.typeId);
+    const replica = (state.replicaStatus ?? []).find(
+      (s) => s.typeId === building.typeId,
+    );
+    if (license && !originRec) {
+      parts.push(
+        `<div style="margin-top:8px" class="muted">Imported from ${license.owner}</div>`,
+      );
+      parts.push(`<div>Resource: <strong>${license.resourceLabel}</strong></div>`);
+      parts.push(`<div>Unit: <strong>${license.unitLabel}</strong></div>`);
+      if (replica?.abandoned) {
+        parts.push(`<div class="muted">Origin forgotten</div>`);
+      } else if (replica) {
+        parts.push(
+          `<div>Seller stock: <strong>${license.resourceLabel} × ${replica.stock}</strong></div>`,
+        );
+        parts.push(
+          `<div class="muted">${replica.exportEnabled ? `Export ${replica.exportPrice} coin / unit` : 'Export disabled'}</div>`,
+        );
+      }
+    }
+
     if (building.typeId === 'main_house') {
       parts.push(
         `<div style="margin-top:8px" class="muted">City HQ — cannot demolish. Other buildings cannot exceed this level.</div>`,
@@ -547,16 +669,113 @@ export class Sidebar {
       });
       this.selectionBody.appendChild(harvestBtn);
 
+      const originReason = trainDisabledReason({
+        kind: 'origin',
+        exportEnabled: true,
+        stock: (building.exportStock ?? 0) + (building.uniquePending ?? 0),
+        food: state.inventory.amounts.food,
+        coin: state.inventory.amounts.coin,
+        price: originRec?.exportPrice ?? 2,
+      });
       const trainBtn = document.createElement('button');
       trainBtn.type = 'button';
-      trainBtn.textContent = `Train ${originRec?.unitLabel ?? 'unit'}`;
+      trainBtn.textContent = originReason
+        ? `Train ${originRec?.unitLabel ?? 'unit'} — ${originReason}`
+        : `Train ${originRec?.unitLabel ?? 'unit'}`;
+      trainBtn.disabled = !!originReason;
       trainBtn.style.marginTop = '8px';
-      trainBtn.addEventListener('click', () => {
-        void this.deps.commands.train(building.id).then((result) => {
+      if (!originReason) {
+        trainBtn.addEventListener('click', () => {
+          void this.deps.commands.train(building.id).then((result) => {
+            if (!result.ok) this.flashStatus(result.reason ?? '');
+            this.refresh();
+          });
+        });
+      }
+      this.selectionBody.appendChild(trainBtn);
+
+      const exportRow = document.createElement('label');
+      exportRow.style.display = 'block';
+      exportRow.style.marginTop = '8px';
+      const exportBox = document.createElement('input');
+      exportBox.type = 'checkbox';
+      exportBox.checked = originRec?.exportEnabled !== false;
+      exportBox.addEventListener('change', () => {
+        void this.deps.commands
+          .setExport(building.typeId, exportBox.checked)
+          .then((result) => {
+            if (!result.ok) this.flashStatus(result.reason ?? '');
+            this.refresh();
+          });
+      });
+      exportRow.append(exportBox, ' Export unique resource');
+      this.selectionBody.appendChild(exportRow);
+
+      const priceInput = document.createElement('input');
+      priceInput.type = 'number';
+      priceInput.min = '1';
+      priceInput.max = '20';
+      priceInput.value = String(originRec?.exportPrice ?? 2);
+      priceInput.style.width = '64px';
+      priceInput.style.marginTop = '6px';
+      priceInput.addEventListener('change', () => {
+        const price = Number(priceInput.value);
+        void this.deps.commands
+          .setExport(building.typeId, exportBox.checked, price)
+          .then((result) => {
+            if (!result.ok) this.flashStatus(result.reason ?? '');
+            this.refresh();
+          });
+      });
+      this.selectionBody.appendChild(priceInput);
+
+      const listed = this.listings.some((l) => l.slot === building.typeId);
+      const listBtn = document.createElement('button');
+      listBtn.type = 'button';
+      listBtn.style.marginTop = '8px';
+      listBtn.textContent = listed ? 'Unlist from market' : `List for ${DEFAULT_LISTING_PRICE} coin`;
+      listBtn.addEventListener('click', () => {
+        const op = listed
+          ? this.deps.commands.unlistFromMarket(building.typeId)
+          : this.deps.commands.listOnMarket(building.typeId, DEFAULT_LISTING_PRICE);
+        void op.then((result) => {
           if (!result.ok) this.flashStatus(result.reason ?? '');
-          this.refresh();
+          void this.deps.commands.marketCatalog().then((cat) => {
+            this.listings = cat.listings;
+            this.refresh();
+          });
         });
       });
+      this.selectionBody.appendChild(listBtn);
+    }
+
+    if (license && !originRec) {
+      const replicaReason = trainDisabledReason({
+        kind: 'replica',
+        exportEnabled: replica ? replica.exportEnabled && !replica.abandoned : true,
+        stock: replica?.stock ?? 0,
+        food: state.inventory.amounts.food,
+        coin: state.inventory.amounts.coin,
+        price: replica?.exportPrice ?? 2,
+      });
+      const abandoned = replica?.abandoned;
+      const trainBtn = document.createElement('button');
+      trainBtn.type = 'button';
+      trainBtn.style.marginTop = '8px';
+      trainBtn.textContent = abandoned
+        ? `Train ${license.unitLabel} — origin forgotten`
+        : replicaReason
+          ? `Train ${license.unitLabel} — ${replicaReason}`
+          : `Train ${license.unitLabel}`;
+      trainBtn.disabled = !!abandoned || !!replicaReason;
+      if (!trainBtn.disabled) {
+        trainBtn.addEventListener('click', () => {
+          void this.deps.commands.train(building.id).then((result) => {
+            if (!result.ok) this.flashStatus(result.reason ?? '');
+            this.refresh();
+          });
+        });
+      }
       this.selectionBody.appendChild(trainBtn);
     }
 
