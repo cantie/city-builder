@@ -86,3 +86,52 @@ describe('harvestUnique', () => {
     expect(state.inventory.amounts.food).toBe(0);
   });
 });
+
+describe('trainAtOrigin', () => {
+  it('trains one unit from export stock and 2 food', () => {
+    const state = originState();
+    const b = state.buildings.find((x) => x.typeId === 'custom-1')!;
+    const custom = state.customBuildings![0]!;
+    b.exportStock = 5;
+    state.inventory.amounts.food = 10;
+    expect(trainAtOrigin(state, b.id).ok).toBe(true);
+    expect(b.exportStock).toBe(0);
+    expect(state.inventory.amounts.food).toBe(8);
+    expect(state.army?.[custom.unitId]).toBe(1);
+  });
+
+  it('auto-pulls pending into stock before spending', () => {
+    const state = originState();
+    const b = state.buildings.find((x) => x.typeId === 'custom-1')!;
+    const custom = state.customBuildings![0]!;
+    b.uniquePending = 5;
+    b.exportStock = 0;
+    state.inventory.amounts.food = 2;
+    expect(trainAtOrigin(state, b.id).ok).toBe(true);
+    expect(b.uniquePending).toBe(0);
+    expect(state.army?.[custom.unitId]).toBe(1);
+  });
+
+  it('fails out of stock or cannot afford without mutation', () => {
+    const state = originState();
+    const b = state.buildings.find((x) => x.typeId === 'custom-1')!;
+    b.exportStock = 1;
+    b.uniquePending = 0;
+    state.inventory.amounts.food = 10;
+    expect(trainAtOrigin(state, b.id)).toEqual({
+      ok: false,
+      reason: 'out of stock',
+    });
+    expect(b.exportStock).toBe(1);
+    expect(state.inventory.amounts.food).toBe(10);
+
+    b.exportStock = 5;
+    state.inventory.amounts.food = 1;
+    expect(trainAtOrigin(state, b.id)).toEqual({
+      ok: false,
+      reason: 'cannot afford',
+    });
+    expect(b.exportStock).toBe(5);
+    expect(state.inventory.amounts.food).toBe(1);
+  });
+});

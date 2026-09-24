@@ -1,4 +1,5 @@
 import { parseCustomSlot } from './customIds';
+import { trySpend } from './inventory';
 import type { BuildingInstance, GameState } from './types';
 
 export const UNIQUE_PENDING_CAP = 50;
@@ -51,5 +52,30 @@ export function harvestUnique(
   const take = Math.min(pending, room);
   building.uniquePending = pending - take;
   building.exportStock = stock + take;
+  return { ok: true };
+}
+
+export function addArmy(state: GameState, unitId: string, n: number): void {
+  if (!state.army) state.army = {};
+  state.army[unitId] = (state.army[unitId] ?? 0) + n;
+}
+
+export function trainAtOrigin(
+  state: GameState,
+  buildingId: string,
+): { ok: true } | { ok: false; reason: string } {
+  const building = state.buildings.find((b) => b.id === buildingId);
+  if (!building) return { ok: false, reason: 'not found' };
+  const rec = (state.customBuildings ?? []).find((c) => c.id === building.typeId);
+  if (!rec) return { ok: false, reason: 'need origin' };
+  pullUniqueToStock(building, TRAIN_UNIQUE_COST);
+  if ((building.exportStock ?? 0) < TRAIN_UNIQUE_COST) {
+    return { ok: false, reason: 'out of stock' };
+  }
+  if (!trySpend(state.inventory, { food: TRAIN_FOOD_COST })) {
+    return { ok: false, reason: 'cannot afford' };
+  }
+  building.exportStock = (building.exportStock ?? 0) - TRAIN_UNIQUE_COST;
+  addArmy(state, rec.unitId, 1);
   return { ok: true };
 }
