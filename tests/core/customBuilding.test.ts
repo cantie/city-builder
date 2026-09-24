@@ -176,6 +176,23 @@ describe('applyInventedBuilding / forgetCustomBuilding', () => {
     expect(placed.ok).toBe(true);
   });
 
+  it('fills unique resource and unit fields from owner + slot', () => {
+    const registry = createRegistry(buildings, [], []);
+    const state = emptyState();
+    const rec = applyInventedBuilding(state, registry, {
+      id: 'custom-1',
+      prompt: 'crystal bakery',
+      footprint: { width: 3, height: 3 },
+      sprite: '/api/sprites/custom-1',
+      owner: 'ada',
+    });
+    expect(rec.resourceId).toBe('res-ada-1');
+    expect(rec.unitId).toBe('unit-ada-1');
+    expect(rec.unitLabel).toBe('crystal bakery Troop');
+    expect(rec.exportPrice).toBe(2);
+    expect(rec.exportEnabled).toBe(true);
+  });
+
   it('forget removes blueprint, instances, and frees the slot', () => {
     const registry = createRegistry(buildings, [], []);
     const state = emptyState();

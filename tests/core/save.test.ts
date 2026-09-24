@@ -269,6 +269,59 @@ describe('save/load', () => {
     expect(loaded!.grid.getOccupant({ x: 2, y: 2 })).toBe('c-1');
   });
 
+  it('round-trips army, licenses, and unique stock', () => {
+    const registry = createRegistry(buildings, recipes, researchDefs);
+    const loaded = deserializeGame(
+      {
+        version: 1 as const,
+        tick: 1,
+        buildings: [
+          {
+            id: 'c-1',
+            typeId: 'custom-1' as const,
+            origin: { x: 0, y: 0 },
+            level: 1,
+            uniquePending: 2,
+            exportStock: 4,
+          },
+        ],
+        inventory: createInventory(40, { food: 0, wood: 0, stone: 0, coin: 0 }),
+        unlockedBlueprints: ['custom-1' as const],
+        unlockedRecipes: [],
+        completedResearch: [],
+        availableResearch: [],
+        activeResearch: null,
+        army: { 'unit-ada-1': 3 },
+        licenses: [],
+        customBuildings: [
+          {
+            id: 'custom-1' as const,
+            label: 'Hut',
+            prompt: 'a cozy hut',
+            footprint: { width: 3, height: 3 },
+            sprite: '/api/sprites/custom-1',
+            resourceId: 'res-ada-1',
+            resourceLabel: 'Hut Ore',
+            unitId: 'unit-ada-1',
+            unitLabel: 'Hut Troop',
+            exportPrice: 2,
+            exportEnabled: true,
+          },
+        ],
+      },
+      registry,
+      upgrades,
+    );
+    expect(loaded).not.toBeNull();
+    expect(loaded!.army).toEqual({ 'unit-ada-1': 3 });
+    expect(loaded!.licenses).toEqual([]);
+    expect(loaded!.buildings[0]?.uniquePending).toBe(2);
+    expect(loaded!.buildings[0]?.exportStock).toBe(4);
+    const again = deserializeGame(serializeGame(loaded!), registry, upgrades);
+    expect(again!.army).toEqual({ 'unit-ada-1': 3 });
+    expect(again!.buildings[0]?.exportStock).toBe(4);
+  });
+
   it('repairs duplicate building ids so grid selection hits the right instance', () => {
     const registry = createRegistry(buildings, recipes, researchDefs);
     const loaded = deserializeGame(

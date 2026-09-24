@@ -1,4 +1,10 @@
 import { demolishBuilding } from './buildings';
+import {
+  fallbackInventNames,
+  parseCustomSlot,
+  sharedResourceId,
+  sharedUnitId,
+} from './customIds';
 import type { ContentRegistry } from './registry';
 import type {
   BuildingDef,
@@ -11,6 +17,7 @@ import type {
 
 export const MAX_CUSTOM_BUILDINGS = 3;
 export const CUSTOM_FOOTPRINT: Footprint = { width: 3, height: 3 };
+export const DEFAULT_EXPORT_PRICE = 2;
 export const INVENT_COST: Partial<Record<ResourceId, number>> = {
   wood: 10,
   stone: 8,
@@ -44,13 +51,31 @@ export function validateInventInput(
   return { ok: true, prompt, footprint: { ...CUSTOM_FOOTPRINT } };
 }
 
+type CustomBuildingDraft = Partial<CustomBuilding> &
+  Pick<CustomBuilding, 'id' | 'label' | 'prompt' | 'footprint' | 'sprite'>;
+
 export function normalizeCustomBuildings(
-  customs: CustomBuilding[] | undefined,
+  customs: CustomBuildingDraft[] | undefined,
+  owner = 'local',
 ): CustomBuilding[] {
-  return (customs ?? []).map((b) => ({
-    ...b,
-    footprint: { ...CUSTOM_FOOTPRINT },
-  }));
+  return (customs ?? []).map((b) => {
+    const slot = parseCustomSlot(String(b.id)) ?? 1;
+    const names = fallbackInventNames(b.prompt);
+    return {
+      id: b.id,
+      label: b.label,
+      prompt: b.prompt,
+      footprint: { ...CUSTOM_FOOTPRINT },
+      sprite: b.sprite,
+      resourceId: b.resourceId ?? sharedResourceId(owner, slot),
+      resourceLabel: b.resourceLabel ?? names.resource,
+      unitId: b.unitId ?? sharedUnitId(owner, slot),
+      unitLabel: b.unitLabel ?? names.unit,
+      exportPrice:
+        typeof b.exportPrice === 'number' ? b.exportPrice : DEFAULT_EXPORT_PRICE,
+      exportEnabled: b.exportEnabled !== false,
+    };
+  });
 }
 
 export function composeInventPrompt(prompt: string, footprint: Footprint): string {
@@ -142,14 +167,34 @@ export function applyInventedBuilding(
     footprint: Footprint;
     sprite: string;
     label?: string;
+    owner?: string;
+    names?: { building?: string; resource?: string; unit?: string };
   },
 ): CustomBuilding {
+  const slot = parseCustomSlot(String(input.id)) ?? 1;
+  const owner = input.owner ?? 'local';
+  const fallback = fallbackInventNames(input.prompt);
   const rec: CustomBuilding = {
     id: input.id,
-    label: customBuildingLabel(input.prompt, input.label),
+    label: customBuildingLabel(
+      input.prompt,
+      input.names?.building ?? input.label,
+    ),
     prompt: input.prompt,
     footprint: { ...CUSTOM_FOOTPRINT },
     sprite: input.sprite,
+    resourceId: sharedResourceId(owner, slot),
+    resourceLabel: customBuildingLabel(
+      input.prompt,
+      input.names?.resource ?? fallback.resource,
+    ),
+    unitId: sharedUnitId(owner, slot),
+    unitLabel: customBuildingLabel(
+      input.prompt,
+      input.names?.unit ?? fallback.unit,
+    ),
+    exportPrice: DEFAULT_EXPORT_PRICE,
+    exportEnabled: true,
   };
   if (!state.customBuildings) state.customBuildings = [];
   state.customBuildings.push(rec);

@@ -44,6 +44,8 @@ export function createNewGame(
     }),
     activeResearch: null,
     customBuildings: [],
+    army: {},
+    licenses: [],
   };
 
   const main = placeBuilding(

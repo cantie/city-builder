@@ -5,6 +5,7 @@ import type { ContentRegistry } from './registry';
 import type {
   ActiveResearch,
   BuildingInstance,
+  BuildingLicense,
   BuildingTypeId,
   CustomBuilding,
   GameState,
@@ -37,6 +38,8 @@ export interface SerializedGame {
   availableResearch: string[];
   activeResearch: ActiveResearch | null;
   customBuildings?: CustomBuilding[];
+  army?: Record<string, number>;
+  licenses?: BuildingLicense[];
 }
 
 export function serializeGame(state: GameState): SerializedGame {
@@ -57,6 +60,8 @@ export function serializeGame(state: GameState): SerializedGame {
       if (b.capacity !== undefined) {
         out.capacity = b.capacity;
       }
+      if (b.uniquePending !== undefined) out.uniquePending = b.uniquePending;
+      if (b.exportStock !== undefined) out.exportStock = b.exportStock;
       return out;
     }),
     inventory: {
@@ -76,7 +81,15 @@ export function serializeGame(state: GameState): SerializedGame {
       prompt: b.prompt,
       footprint: { ...b.footprint },
       sprite: b.sprite,
+      resourceId: b.resourceId,
+      resourceLabel: b.resourceLabel,
+      unitId: b.unitId,
+      unitLabel: b.unitLabel,
+      exportPrice: b.exportPrice,
+      exportEnabled: b.exportEnabled,
     })),
+    army: { ...(state.army ?? {}) },
+    licenses: (state.licenses ?? []).map((l) => ({ ...l })),
   };
 }
 
@@ -124,6 +137,12 @@ export function deserializeGame(
         } else if (typeof b.capacity === 'number') {
           out.capacity = b.capacity;
         }
+        if (typeof b.uniquePending === 'number') {
+          out.uniquePending = b.uniquePending;
+        }
+        if (typeof b.exportStock === 'number') {
+          out.exportStock = b.exportStock;
+        }
         return out;
       },
     );
@@ -162,6 +181,10 @@ export function deserializeGame(
       availableResearch: [...(s.availableResearch ?? [])],
       activeResearch: s.activeResearch ? { ...s.activeResearch } : null,
       customBuildings: customs,
+      army: { ...(s.army ?? {}) },
+      licenses: Array.isArray(s.licenses)
+        ? s.licenses.map((l) => ({ ...l }))
+        : [],
     };
 
     // Always recompute softCap from warehouses so saves stay consistent.

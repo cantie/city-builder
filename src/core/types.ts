@@ -55,6 +55,10 @@ export interface BuildingInstance {
   pending?: Partial<Record<ResourceId, number>>;
   /** Warehouse capacity for this instance (from upgrades config by level). */
   capacity?: number;
+  /** Unique resource waiting to be stocked on an origin custom building. */
+  uniquePending?: number;
+  /** Unique resource ready to train or export. */
+  exportStock?: number;
 }
 
 export interface InventoryState {
@@ -67,6 +71,24 @@ export interface CustomBuilding {
   label: string;
   prompt: string;
   footprint: Footprint;
+  sprite: string;
+  resourceId: string;
+  resourceLabel: string;
+  unitId: string;
+  unitLabel: string;
+  exportPrice: number;
+  exportEnabled: boolean;
+}
+
+export interface BuildingLicense {
+  typeId: BuildingTypeId;
+  owner: string;
+  slot: 'custom-1' | 'custom-2' | 'custom-3';
+  label: string;
+  resourceId: string;
+  resourceLabel: string;
+  unitId: string;
+  unitLabel: string;
   sprite: string;
 }
 
@@ -86,4 +108,6 @@ export interface GameState {
   availableResearch: string[];
   activeResearch: ActiveResearch | null;
   customBuildings?: CustomBuilding[];
+  army?: Record<string, number>;
+  licenses?: BuildingLicense[];
 }
