@@ -21,8 +21,9 @@ export function warehouseCapacityForLevel(
 }
 
 /**
- * Soft-cap of city inventory = sum of all warehouse capacities on the map.
- * Zero warehouses → softCap 0 (harvest fails / inventory full).
+ * Per-resource inventory cap = sum of warehouse capacities on the map.
+ * Each type (food/wood/stone/coin) uses that cap independently.
+ * Zero warehouses → softCap 0 (harvest fails / no warehouse).
  */
 export function computeWarehouseSoftCap(
   buildings: BuildingInstance[],

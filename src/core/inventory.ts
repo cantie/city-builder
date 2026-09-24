@@ -28,12 +28,12 @@ export function canAdd(
   inv: InventoryState,
   delta: Partial<Record<ResourceId, number>>,
 ): boolean {
-  const addTotal = (Object.keys(delta) as ResourceId[]).reduce(
-    (sum, id) => sum + (delta[id] ?? 0),
-    0,
-  );
-  if (addTotal < 0) return false;
-  return totalAmount(inv) + addTotal <= inv.softCap;
+  for (const id of Object.keys(delta) as ResourceId[]) {
+    const extra = delta[id] ?? 0;
+    if (extra < 0) return false;
+    if (inv.amounts[id] + extra > inv.softCap) return false;
+  }
+  return true;
 }
 
 export function add(

@@ -5,8 +5,10 @@ import {
   createRegistry,
   demolishBuilding,
   moveBuilding,
+  nextBuildingId,
   originFromGrab,
   placeBuilding,
+  uniquifyBuildingIds,
 } from '@/core/buildings';
 import type { BuildingDef, GameState, RecipeDef, ResearchDef } from '@/core/types';
 
@@ -154,6 +156,32 @@ describe('moveBuilding', () => {
     if (!result.ok) expect(result.reason).toBe('invalid placement');
     expect(state.grid.getOccupant({ x: 0, y: 0 })).toBe('farm-1');
     expect(state.grid.getOccupant({ x: 9, y: 9 })).toBe('main-1');
+  });
+
+  it('allocates ids from existing buildings instead of a process counter', () => {
+    const registry = createRegistry(buildings, recipes, research);
+    const state = freshState();
+    state.buildings.push({
+      id: 'b-1',
+      typeId: 'farm',
+      origin: { x: 0, y: 0 },
+      level: 1,
+    });
+    expect(nextBuildingId(state.buildings.map((b) => b.id))).toBe('b-2');
+    const placed = placeBuilding(state, registry, 'farm', { x: 2, y: 2 });
+    expect(placed.ok).toBe(true);
+    if (placed.ok) expect(placed.building.id).toBe('b-2');
+  });
+
+  it('renames duplicate instance ids so selection can tell buildings apart', () => {
+    const buildingsDup = [
+      { id: 'b-1', typeId: 'quarry' },
+      { id: 'b-1', typeId: 'custom-1' },
+    ];
+    uniquifyBuildingIds(buildingsDup);
+    expect(new Set(buildingsDup.map((b) => b.id)).size).toBe(2);
+    expect(buildingsDup[0].id).toBe('b-1');
+    expect(buildingsDup[1].id).toBe('b-2');
   });
 
   it('originFromGrab keeps the grabbed tile relative to origin', () => {

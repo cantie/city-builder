@@ -1,5 +1,5 @@
 export const ZOOM_LEVELS = [0.4, 0.65, 1.0, 1.5] as const;
-export const DEFAULT_ZOOM_INDEX = 0;
+export const DEFAULT_ZOOM_INDEX = 2;
 export const DEFAULT_ZOOM = ZOOM_LEVELS[DEFAULT_ZOOM_INDEX];
 
 export type ZoomDirection = 1 | -1;

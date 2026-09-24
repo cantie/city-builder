@@ -8,14 +8,14 @@ import {
 } from '@/bridge/cameraZoom';
 
 describe('camera zoom levels', () => {
-  it('exposes four discrete zoom steps, defaulting to the most zoomed-out', () => {
+  it('exposes four discrete zoom steps, defaulting to level 3', () => {
     expect(ZOOM_LEVELS).toHaveLength(4);
     expect(ZOOM_LEVELS[0]).toBeLessThan(ZOOM_LEVELS[1]);
     expect(ZOOM_LEVELS[1]).toBeLessThan(ZOOM_LEVELS[2]);
     expect(ZOOM_LEVELS[2]).toBeLessThan(ZOOM_LEVELS[3]);
-    expect(DEFAULT_ZOOM_INDEX).toBe(0);
-    expect(DEFAULT_ZOOM).toBe(ZOOM_LEVELS[0]);
-    expect(DEFAULT_ZOOM).toBeLessThan(1);
+    expect(DEFAULT_ZOOM_INDEX).toBe(2);
+    expect(DEFAULT_ZOOM).toBe(ZOOM_LEVELS[2]);
+    expect(DEFAULT_ZOOM).toBe(1);
   });
 
   it('steps in and out without leaving the ladder', () => {

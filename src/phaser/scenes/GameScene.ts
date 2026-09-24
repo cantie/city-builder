@@ -293,7 +293,12 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       void this.ctx.submitPlace(typeId, tile).then((result) => {
-        if (!result.ok) this.flash(result.reason ?? 'invalid placement');
+        if (!result.ok) {
+          this.flash(result.reason ?? 'invalid placement');
+        } else {
+          this.ctx.setSelectedBlueprint(null);
+          this.clearGhost();
+        }
         this.redrawBuildings();
       });
       return;

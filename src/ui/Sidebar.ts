@@ -10,6 +10,7 @@ import {
   inventDisabledReason,
   nextSidebarPanel,
   selectedBuildingTypeId,
+  showNewGameButton,
   type SidebarPanel,
 } from '@/phaser/hud/hudLogic';
 import { INVENT_COST } from '@/core/customBuilding';
@@ -150,10 +151,7 @@ export class Sidebar {
     });
 
     this.inventBtn.addEventListener('click', () => {
-      const chosen = document.querySelector<HTMLInputElement>(
-        'input[name="invent-footprint"]:checked',
-      );
-      const n = Number(chosen?.value ?? 2);
+      const n = 3;
       const state = this.deps.getState();
       const blocked = inventDisabledReason(state);
       if (blocked) {
@@ -250,14 +248,14 @@ export class Sidebar {
     const capNote =
       cap <= 0
         ? 'Warehouse cap 0 — place a warehouse to store harvests'
-        : `Warehouse cap ${cap}`;
+        : `${cap} each`;
     const ids: ResourceId[] = ['food', 'wood', 'stone', 'coin'];
     const cells = ids
       .map(
         (id) => `
-      <div class="resource" title="${id}">
+      <div class="resource" title="${id}: ${a[id]}/${cap}">
         ${RESOURCE_ICONS[id]}
-        <strong>${a[id]}</strong>
+        <strong>${a[id]}</strong><span class="muted">/${cap}</span>
       </div>`,
       )
       .join('');
@@ -383,8 +381,11 @@ export class Sidebar {
   private renderSelection(state: GameState): void {
     const show = this.panel === 'inspect';
     this.selectionSection.hidden = !show;
-    this.metaSection.hidden = !show;
     const id = this.deps.getSelectedBuildingId();
+    this.metaSection.hidden = !showNewGameButton({
+      panel: this.panel,
+      selectedTypeId: selectedBuildingTypeId(state, id),
+    });
     this.selectionBody.replaceChildren();
     if (!show) return;
 
@@ -424,7 +425,7 @@ export class Sidebar {
     if (building.typeId === 'warehouse') {
       const cap = building.capacity ?? 100;
       parts.push(
-        `<div style="margin-top:6px">Capacity: <strong>${cap}</strong></div>`,
+        `<div style="margin-top:6px">Capacity: <strong>${cap}</strong> each resource</div>`,
       );
     }
 

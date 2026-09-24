@@ -26,10 +26,23 @@ export type PlaceResult =
 export type DemolishResult = { ok: true } | { ok: false; reason: string };
 export type MoveResult = { ok: true } | { ok: false; reason: string };
 
-let autoId = 0;
-function defaultId(): string {
-  autoId += 1;
-  return `b-${autoId}`;
+export function nextBuildingId(existingIds: Iterable<string>): string {
+  let max = 0;
+  for (const id of existingIds) {
+    const m = /^b-(\d+)$/.exec(id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `b-${max + 1}`;
+}
+
+export function uniquifyBuildingIds(buildings: { id: string }[]): void {
+  const seen = new Set<string>();
+  for (const b of buildings) {
+    if (!b.id || seen.has(b.id)) {
+      b.id = nextBuildingId(seen);
+    }
+    seen.add(b.id);
+  }
 }
 
 export function placeBuilding(
@@ -37,7 +50,7 @@ export function placeBuilding(
   registry: ContentRegistry,
   typeId: BuildingTypeId,
   origin: Cell,
-  idFactory: () => string = defaultId,
+  idFactory?: () => string,
   upgrades: UpgradesConfig = defaultUpgrades,
   options: { free?: boolean } = {},
 ): PlaceResult {
@@ -53,7 +66,7 @@ export function placeBuilding(
     return { ok: false, reason: 'cannot afford' };
   }
   const building: BuildingInstance = {
-    id: idFactory(),
+    id: idFactory?.() ?? nextBuildingId(state.buildings.map((b) => b.id)),
     typeId,
     origin: { ...origin },
     level: 1,

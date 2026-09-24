@@ -1,4 +1,4 @@
-import { add, canAdd } from './inventory';
+import { add } from './inventory';
 import type { ContentRegistry } from './registry';
 import type { GameState, ResourceId } from './types';
 
@@ -53,10 +53,27 @@ export function produceFarms(state: GameState, registry: ContentRegistry): void 
   }
 }
 
+/** How much of `pending` still fits under each resource's warehouse cap. */
+function takeUpToCap(
+  inv: GameState['inventory'],
+  pending: Partial<Record<ResourceId, number>>,
+): Partial<Record<ResourceId, number>> {
+  const taken: Partial<Record<ResourceId, number>> = {};
+  for (const id of Object.keys(pending) as ResourceId[]) {
+    const want = pending[id] ?? 0;
+    if (want <= 0) continue;
+    const room = Math.max(0, inv.softCap - inv.amounts[id]);
+    const take = Math.min(want, room);
+    if (take > 0) taken[id] = take;
+  }
+  return taken;
+}
+
 /**
- * Move all pending resources from a building into city inventory (warehouse stock).
- * Clears pending only on success. softCap must come from warehouses —
- * with zero warehouses, softCap is 0 and harvest fails clearly.
+ * Move pending resources from a building into city inventory (warehouse stock).
+ * Each resource is capped independently at warehouse softCap: only the amount
+ * that still fits is taken; leftover stays on the building. Zero warehouses
+ * → harvest fails (no warehouse). Already at cap → inventory full.
  */
 export function harvestBuilding(
   state: GameState,
@@ -74,11 +91,17 @@ export function harvestBuilding(
     return { ok: false, reason: 'no warehouse' };
   }
 
-  if (!canAdd(state.inventory, pending)) {
+  const taken = takeUpToCap(state.inventory, pending);
+  if (pendingTotal(taken) === 0) {
     return { ok: false, reason: 'inventory full' };
   }
 
-  add(state.inventory, pending);
-  building.pending = {};
+  add(state.inventory, taken);
+  const leftover: Partial<Record<ResourceId, number>> = {};
+  for (const id of Object.keys(pending) as ResourceId[]) {
+    const remain = (pending[id] ?? 0) - (taken[id] ?? 0);
+    if (remain > 0) leftover[id] = remain;
+  }
+  building.pending = leftover;
   return { ok: true };
 }

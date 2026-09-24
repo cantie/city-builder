@@ -55,6 +55,13 @@ export function nextSidebarPanel(input: {
   return input.current;
 }
 
+export function showNewGameButton(input: {
+  panel: SidebarPanel;
+  selectedTypeId: string | null;
+}): boolean {
+  return input.panel === 'inspect' && input.selectedTypeId === 'main_house';
+}
+
 export function inventDisabledReason(state: GameState): string | null {
   if (!hasResearchInstitute(state)) return 'need research institute';
   if ((state.customBuildings ?? []).length >= MAX_CUSTOM_BUILDINGS) {

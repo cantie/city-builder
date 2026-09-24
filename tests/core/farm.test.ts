@@ -105,13 +105,24 @@ describe('harvestBuilding', () => {
     expect(farm.pending).toEqual({});
   });
 
-  it('fails with inventory full and leaves pending unchanged', () => {
+  it('harvests only enough to fill the inventory cap and leaves leftover pending', () => {
     const { state, registry } = stateWithFarm(3);
     state.inventory.amounts.food = 2;
     state.inventory.amounts.wood = 1;
-    produceFarms(state, registry); // pending food: 2
+    produceFarms(state, registry); // pending food: 2, room: 1
     const farm = state.buildings.find((b) => b.id === 'farm-1')!;
     expect(farm.pending).toEqual({ food: 2 });
+    const result = harvestBuilding(state, 'farm-1');
+    expect(result.ok).toBe(true);
+    expect(state.inventory.amounts.food).toBe(3);
+    expect(farm.pending).toEqual({ food: 1 });
+  });
+
+  it('fails with inventory full when there is no remaining room', () => {
+    const { state, registry } = stateWithFarm(2);
+    state.inventory.amounts.food = 2;
+    produceFarms(state, registry); // pending food: 2
+    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
     const result = harvestBuilding(state, 'farm-1');
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe('inventory full');

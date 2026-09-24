@@ -21,6 +21,7 @@ import {
 } from '../src/core/customBuilding';
 import { harvestBuilding } from '../src/core/farm';
 import { trySpend } from '../src/core/inventory';
+import { nameBuildingFromPrompt } from './nameBuilding';
 import {
   hasResearchInstitute,
   startResearch,
@@ -71,6 +72,7 @@ export class PlayerStore {
     private upgrades: UpgradesConfig,
     private now: () => number = () => Date.now(),
     private generateImage: GenerateImage = createImageGenerator(),
+    private nameBuilding: (prompt: string) => Promise<string> = nameBuildingFromPrompt,
   ) {}
 
   async login(name: string): Promise<CommandResult> {
@@ -142,10 +144,14 @@ export class PlayerStore {
         }
       }
       let png: Buffer;
+      let label: string;
       try {
-        png = await this.generateImage(
-          composeInventPrompt(parsed.prompt, parsed.footprint),
-        );
+        [png, label] = await Promise.all([
+          this.generateImage(
+            composeInventPrompt(parsed.prompt, parsed.footprint),
+          ),
+          this.nameBuilding(parsed.prompt),
+        ]);
       } catch (err) {
         const reason =
           err instanceof Error && err.message === MISSING_IMAGE_KEY
@@ -166,6 +172,7 @@ export class PlayerStore {
         prompt: parsed.prompt,
         footprint: parsed.footprint,
         sprite: `/api/sprites/${id}`,
+        label,
       });
       await this.writeSprite(key, id, png);
       await this.write(key, rec, state);

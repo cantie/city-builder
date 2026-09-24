@@ -1,5 +1,6 @@
+import { uniquifyBuildingIds } from './buildings';
 import { Grid, findPlaceableOrigin } from './grid';
-import { withCustomBuildings } from './customBuilding';
+import { normalizeCustomBuildings, withCustomBuildings } from './customBuilding';
 import type { ContentRegistry } from './registry';
 import type {
   ActiveResearch,
@@ -95,10 +96,8 @@ export function deserializeGame(
       return null;
     }
 
-    const registryWithCustom = withCustomBuildings(
-      registry,
-      s.customBuildings,
-    );
+    const customs = normalizeCustomBuildings(s.customBuildings);
+    const registryWithCustom = withCustomBuildings(registry, customs);
     const grid = new Grid();
     const buildings: BuildingInstance[] = (s.buildings as BuildingInstance[]).map(
       (b) => {
@@ -128,6 +127,7 @@ export function deserializeGame(
         return out;
       },
     );
+    uniquifyBuildingIds(buildings);
     for (const b of [
       ...buildings.filter((x) => x.typeId === 'main_house'),
       ...buildings.filter((x) => x.typeId !== 'main_house'),
@@ -161,15 +161,7 @@ export function deserializeGame(
       completedResearch: [...(s.completedResearch ?? [])],
       availableResearch: [...(s.availableResearch ?? [])],
       activeResearch: s.activeResearch ? { ...s.activeResearch } : null,
-      customBuildings: Array.isArray(s.customBuildings)
-        ? s.customBuildings.map((b) => ({
-            id: b.id,
-            label: b.label,
-            prompt: b.prompt,
-            footprint: { ...b.footprint },
-            sprite: b.sprite,
-          }))
-        : [],
+      customBuildings: customs,
     };
 
     // Always recompute softCap from warehouses so saves stay consistent.

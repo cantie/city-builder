@@ -6,6 +6,7 @@ import {
   unlockedBuildOptions,
   researchStartDisabledReason,
   nextSidebarPanel,
+  showNewGameButton,
 } from '@/phaser/hud/hudLogic';
 import type { BuildingDef, GameState, ResearchDef } from '@/core/types';
 
@@ -143,5 +144,23 @@ describe('hudLogic', () => {
         selectedTypeId: null,
       }),
     ).toBe('build');
+  });
+
+  it('shows New game only while inspecting the main house', () => {
+    expect(
+      showNewGameButton({ panel: 'inspect', selectedTypeId: 'main_house' }),
+    ).toBe(true);
+    expect(
+      showNewGameButton({ panel: 'inspect', selectedTypeId: 'farm' }),
+    ).toBe(false);
+    expect(
+      showNewGameButton({ panel: 'inspect', selectedTypeId: null }),
+    ).toBe(false);
+    expect(
+      showNewGameButton({ panel: 'build', selectedTypeId: 'main_house' }),
+    ).toBe(false);
+    expect(
+      showNewGameButton({ panel: 'research', selectedTypeId: 'main_house' }),
+    ).toBe(false);
   });
 });

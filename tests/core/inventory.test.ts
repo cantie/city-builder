@@ -10,17 +10,24 @@ describe('inventory', () => {
     expect(totalAmount(inv)).toBe(17);
   });
 
-  it('canAdd is false when delta would exceed soft cap', () => {
-    const inv = createInventory(10, { food: 8 });
+  it('canAdd is false when one resource would exceed its own cap', () => {
+    const inv = createInventory(10, { food: 8, wood: 10 });
     expect(canAdd(inv, { food: 3 })).toBe(false);
     expect(canAdd(inv, { food: 2 })).toBe(true);
+    expect(canAdd(inv, { wood: 1 })).toBe(false);
   });
 
-  it('add skips (returns false, no mutation) when full', () => {
+  it('canAdd allows another resource when one type is already at cap', () => {
     const inv = createInventory(5, { food: 5 });
-    expect(add(inv, { wood: 1 })).toBe(false);
+    expect(canAdd(inv, { wood: 1 })).toBe(true);
+  });
+
+  it('add skips (returns false, no mutation) when that resource is full', () => {
+    const inv = createInventory(5, { food: 5 });
+    expect(add(inv, { food: 1 })).toBe(false);
     expect(inv.amounts.food).toBe(5);
-    expect(inv.amounts.wood).toBe(0);
+    expect(add(inv, { wood: 1 })).toBe(true);
+    expect(inv.amounts.wood).toBe(1);
   });
 
   it('add mutates when under cap', () => {

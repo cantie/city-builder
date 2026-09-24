@@ -10,6 +10,7 @@ import type {
 } from './types';
 
 export const MAX_CUSTOM_BUILDINGS = 3;
+export const CUSTOM_FOOTPRINT: Footprint = { width: 3, height: 3 };
 export const INVENT_COST: Partial<Record<ResourceId, number>> = {
   wood: 10,
   stone: 8,
@@ -40,10 +41,16 @@ export function validateInventInput(
   if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(prompt)) {
     return { ok: false, reason: 'invalid prompt' };
   }
-  if (width !== height || (width !== 2 && width !== 3)) {
-    return { ok: false, reason: 'invalid footprint' };
-  }
-  return { ok: true, prompt, footprint: { width, height } };
+  return { ok: true, prompt, footprint: { ...CUSTOM_FOOTPRINT } };
+}
+
+export function normalizeCustomBuildings(
+  customs: CustomBuilding[] | undefined,
+): CustomBuilding[] {
+  return (customs ?? []).map((b) => ({
+    ...b,
+    footprint: { ...CUSTOM_FOOTPRINT },
+  }));
 }
 
 export function composeInventPrompt(prompt: string, footprint: Footprint): string {
@@ -66,8 +73,26 @@ export function nextCustomBuildingId(
   return null;
 }
 
-export function customBuildingLabel(prompt: string): string {
-  return prompt.length <= 24 ? prompt : `${prompt.slice(0, 23)}…`;
+/** Keep a building name short enough for the build grid. */
+export const BUILDING_NAME_MAX = 24;
+
+export function sanitizeBuildingName(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const first = raw.split(/\r?\n/)[0] ?? '';
+  const cleaned = first
+    .replace(/[`*_#]/g, '')
+    .replace(/^[\s"'“”‘’]+|[\s"'“”‘’.]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!cleaned) return null;
+  if (cleaned.length <= BUILDING_NAME_MAX) return cleaned;
+  return `${cleaned.slice(0, BUILDING_NAME_MAX - 1)}…`;
+}
+
+export function customBuildingLabel(prompt: string, suggested?: string): string {
+  return sanitizeBuildingName(suggested) ?? (prompt.length <= BUILDING_NAME_MAX
+    ? prompt
+    : `${prompt.slice(0, BUILDING_NAME_MAX - 1)}…`);
 }
 
 export function toCustomBuildingDef(rec: CustomBuilding): BuildingDef {
@@ -116,13 +141,14 @@ export function applyInventedBuilding(
     prompt: string;
     footprint: Footprint;
     sprite: string;
+    label?: string;
   },
 ): CustomBuilding {
   const rec: CustomBuilding = {
     id: input.id,
-    label: customBuildingLabel(input.prompt),
+    label: customBuildingLabel(input.prompt, input.label),
     prompt: input.prompt,
-    footprint: { ...input.footprint },
+    footprint: { ...CUSTOM_FOOTPRINT },
     sprite: input.sprite,
   };
   if (!state.customBuildings) state.customBuildings = [];

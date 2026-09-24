@@ -227,6 +227,89 @@ describe('save/load', () => {
     expect(loaded!.grid.getOccupant({ x: 9, y: 9 })).toBe('main-1');
   });
 
+  it('migrates saved 2x2 custom buildings to 3x3', () => {
+    const registry = createRegistry(buildings, recipes, researchDefs);
+    const loaded = deserializeGame(
+      {
+        version: 1 as const,
+        tick: 0,
+        buildings: [
+          {
+            id: 'c-1',
+            typeId: 'custom-1' as const,
+            origin: { x: 0, y: 0 },
+            level: 1,
+          },
+        ],
+        inventory: createInventory(40, { food: 0, wood: 0, stone: 0, coin: 0 }),
+        unlockedBlueprints: ['custom-1' as const],
+        unlockedRecipes: [],
+        completedResearch: [],
+        availableResearch: [],
+        activeResearch: null,
+        customBuildings: [
+          {
+            id: 'custom-1' as const,
+            label: 'Hut',
+            prompt: 'a cozy hut',
+            footprint: { width: 2, height: 2 },
+            sprite: '/api/sprites/custom-1',
+          },
+        ],
+      },
+      registry,
+      upgrades,
+    );
+    expect(loaded).not.toBeNull();
+    expect(loaded!.customBuildings?.[0]?.footprint).toEqual({
+      width: 3,
+      height: 3,
+    });
+    expect(loaded!.grid.getOccupant({ x: 0, y: 0 })).toBe('c-1');
+    expect(loaded!.grid.getOccupant({ x: 2, y: 2 })).toBe('c-1');
+  });
+
+  it('repairs duplicate building ids so grid selection hits the right instance', () => {
+    const registry = createRegistry(buildings, recipes, researchDefs);
+    const loaded = deserializeGame(
+      {
+        version: 1 as const,
+        tick: 0,
+        buildings: [
+          {
+            id: 'b-1',
+            typeId: 'farm' as const,
+            origin: { x: 0, y: 0 },
+            level: 1,
+            recipeId: 'basic_food',
+          },
+          {
+            id: 'b-1',
+            typeId: 'research_institute' as const,
+            origin: { x: 3, y: 3 },
+            level: 1,
+          },
+        ],
+        inventory: createInventory(40, { food: 0, wood: 0, stone: 0, coin: 0 }),
+        unlockedBlueprints: ['farm' as const, 'research_institute' as const],
+        unlockedRecipes: ['basic_food'],
+        completedResearch: [],
+        availableResearch: [],
+        activeResearch: null,
+      },
+      registry,
+      upgrades,
+    );
+    expect(loaded).not.toBeNull();
+    const ids = loaded!.buildings.map((b) => b.id);
+    expect(new Set(ids).size).toBe(2);
+    const farm = loaded!.buildings.find((b) => b.typeId === 'farm')!;
+    const ri = loaded!.buildings.find((b) => b.typeId === 'research_institute')!;
+    expect(loaded!.grid.getOccupant({ x: 0, y: 0 })).toBe(farm.id);
+    expect(loaded!.grid.getOccupant({ x: 3, y: 3 })).toBe(ri.id);
+    expect(loaded!.buildings.find((b) => b.id === farm.id)?.typeId).toBe('farm');
+  });
+
   it('corrupt payload returns null', () => {
     const registry = createRegistry(buildings, recipes, researchDefs);
     expect(deserializeGame(null, registry)).toBeNull();

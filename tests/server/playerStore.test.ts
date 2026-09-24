@@ -91,6 +91,7 @@ describe('PlayerStore', () => {
           if (calls === 1) throw new Error('image generation failed');
           return TINY_PNG;
         },
+        async () => 'Crystal Bakery',
       );
       await store.login('Ada');
       await store.apply('Ada', {
@@ -110,6 +111,9 @@ describe('PlayerStore', () => {
       expect(ok.ok).toBe(true);
       expect(ok.game.customBuildings?.some((b) => b.id === 'custom-1')).toBe(
         true,
+      );
+      expect(ok.game.customBuildings?.find((b) => b.id === 'custom-1')?.label).toBe(
+        'Crystal Bakery',
       );
       expect(ok.game.unlockedBlueprints).toContain('custom-1');
       const png = await store.readSprite('Ada', 'custom-1');
