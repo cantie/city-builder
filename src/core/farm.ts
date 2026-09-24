@@ -1,3 +1,4 @@
+import { harvestUnique, isOriginCustom } from './customEconomy';
 import { add } from './inventory';
 import type { ContentRegistry } from './registry';
 import type { GameState, ResourceId } from './types';
@@ -81,6 +82,9 @@ export function harvestBuilding(
 ): HarvestResult {
   const building = state.buildings.find((b) => b.id === buildingId);
   if (!building) return { ok: false, reason: 'not found' };
+  if (isOriginCustom(state, building)) {
+    return harvestUnique(state, buildingId);
+  }
 
   const pending = building.pending ?? {};
   if (pendingTotal(pending) === 0) {
