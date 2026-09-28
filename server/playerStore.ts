@@ -201,7 +201,7 @@ export class PlayerStore {
 
   async readSprite(name: string, id: string): Promise<Buffer | null> {
     const key = normalizePlayerName(name);
-    if (!key || !/^custom-[123]$/.test(id)) return null;
+    if (!key || parseCustomSlot(id) == null) return null;
     try {
       return await readFile(this.spritePath(key, id));
     } catch {
@@ -381,9 +381,11 @@ export class PlayerStore {
   }
 
   async readMarketSprite(typeId: string): Promise<Buffer | null> {
-    const m = /^custom-([a-z0-9_-]+)-([123])$/.exec(typeId);
+    const m = /^custom-([a-z0-9_-]+)-(\d+)$/.exec(typeId);
     if (!m) return null;
-    return this.readSprite(m[1]!, `custom-${m[2]!}`);
+    const slotId = `custom-${m[2]!}`;
+    if (parseCustomSlot(slotId) == null) return null;
+    return this.readSprite(m[1]!, slotId);
   }
 
   private runAction(

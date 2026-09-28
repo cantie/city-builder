@@ -73,10 +73,10 @@ describe('createNewGame', () => {
     const state = createNewGame(registry, upgrades);
     expect(state.buildings.some((b) => b.typeId === 'main_house')).toBe(true);
     expect(state.buildings.some((b) => b.typeId === 'warehouse')).toBe(true);
-    expect(state.grid.getOccupant({ x: 23, y: 23 })).toBe('main-1');
-    expect(state.grid.getOccupant({ x: 25, y: 25 })).toBe('main-1');
-    expect(state.grid.getOccupant({ x: 20, y: 23 })).toBe('warehouse-1');
-    expect(state.grid.getOccupant({ x: 22, y: 25 })).toBe('warehouse-1');
+    expect(state.grid.getOccupant({ x: 17, y: 2 })).toBe('main-1');
+    expect(state.grid.getOccupant({ x: 19, y: 4 })).toBe('main-1');
+    expect(state.grid.getOccupant({ x: 12, y: 1 })).toBe('warehouse-1');
+    expect(state.grid.getOccupant({ x: 14, y: 3 })).toBe('warehouse-1');
     expect(state.inventory.softCap).toBe(100);
     expect(state.inventory.amounts.coin).toBe(100);
     expect(state.inventory.amounts.food).toBeGreaterThanOrEqual(10);

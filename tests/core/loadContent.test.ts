@@ -12,8 +12,8 @@ describe('loadContentFromData', () => {
       height: 3,
     });
     expect(registry.buildings.get('farm')?.footprint).toEqual({
-      width: 2,
-      height: 2,
+      width: 3,
+      height: 3,
     });
     expect(registry.buildings.get('research_institute')?.footprint).toEqual({
       width: 3,
@@ -24,12 +24,12 @@ describe('loadContentFromData', () => {
       height: 3,
     });
     expect(registry.buildings.get('lumber_yard')?.footprint).toEqual({
-      width: 2,
-      height: 2,
+      width: 3,
+      height: 3,
     });
     expect(registry.buildings.get('quarry')?.footprint).toEqual({
-      width: 2,
-      height: 2,
+      width: 6,
+      height: 6,
     });
     expect(registry.buildings.get('warehouse')?.sprite).toBe(
       '/assets/buildings/warehouse.png',

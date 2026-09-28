@@ -45,6 +45,7 @@ let game: Phaser.Game | undefined;
 let sidebar: Sidebar | undefined;
 /** Last tick confirmed by a command/login snapshot — not by local display ticks. */
 let lastAuthoritativeTick = 0;
+let buildMode = false;
 
 function refreshScene(): void {
   if (!game) return;
@@ -107,6 +108,7 @@ function boot(initial: GameState): void {
   lastAuthoritativeTick = initial.tick;
   session.selected = null;
   session.selectedBuildingId = null;
+  buildMode = false;
 
   const ctx: GameContext = {
     get state() {
@@ -130,6 +132,7 @@ function boot(initial: GameState): void {
       session.selectedBuildingId = id;
       notifyUi();
     },
+    getBuildMode: () => buildMode,
     submitPlace: async (typeId, origin) =>
       applyResult(await api.place(typeId, origin.x, origin.y)),
     submitMove: async (buildingId, origin) =>
@@ -151,6 +154,9 @@ function boot(initial: GameState): void {
     setSelectedBuildingId: (id) => {
       session.selectedBuildingId = id;
       notifyUi();
+    },
+    setBuildMode: (on) => {
+      buildMode = on;
     },
     commands: {
       harvest: async (id) => applyResult(await api.harvest(id)),

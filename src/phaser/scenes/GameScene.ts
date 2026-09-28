@@ -1,10 +1,15 @@
 import Phaser from 'phaser';
 import { GRID_HEIGHT, GRID_WIDTH } from '@/core/grid';
-import { originFromGrab } from '@/core/buildings';
+import { clickPlacesAt, defaultOriginFor } from '@/core/buildingSlots';
 import {
   footprintScreenCorners,
   ISO_TILE_W,
   isoMapBounds,
+  isoMapCenter,
+  isoGridLines,
+  groundCoverRect,
+  groundImageRect,
+  cameraBoundsForView,
   screenToTile,
   tileToScreen,
 } from '@/bridge/coords';
@@ -12,10 +17,11 @@ import {
   DEFAULT_ZOOM,
   ZOOM_LEVELS,
   lookAtTileFromBuildings,
+  scrollAfterPan,
   stepZoom,
 } from '@/bridge/cameraZoom';
 import { isTextInputTarget } from '@/ui/domFocus';
-import type { BuildingDef, BuildingInstance, BuildingTypeId, Cell } from '@/core/types';
+import type { BuildingDef, BuildingInstance, BuildingTypeId } from '@/core/types';
 import type { GameContext } from '../createGame';
 
 /** Bottom vertex of a footprint diamond — natural ground contact for sprites. */
@@ -28,25 +34,33 @@ function spriteDisplayWidth(footprint: { width: number; height: number }): numbe
   return ((footprint.width + footprint.height) / 2) * ISO_TILE_W;
 }
 
-/** Pixel distance before a pointerdown becomes a drag-move. */
+/** PixelLab empty tiles stay loaded; stamp them again when this is true. */
+const SHOW_GROUND_TILES = false;
+const GROUND_FILL = 0x7eb85a;
+
+/** Pixel distance before a pointerdown becomes a map pan. */
 const DRAG_THRESHOLD_PX = 8;
 
-type DragState = {
-  buildingId: string;
-  grabOffset: Cell;
+type PanState = {
   startX: number;
   startY: number;
+  originScrollX: number;
+  originScrollY: number;
   active: boolean;
 };
 
 export class GameScene extends Phaser.Scene {
   private ghostGfx?: Phaser.GameObjects.Graphics;
+  private gridGfx?: Phaser.GameObjects.Graphics;
   private ghostSprite?: Phaser.GameObjects.Image;
   private toastText?: Phaser.GameObjects.Text;
   private buildingSprites = new Map<string, Phaser.GameObjects.Image>();
-  private drag: DragState | null = null;
+  private pan: PanState | null = null;
+  private lastGhostType: string | null = null;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: Record<string, Phaser.Input.Keyboard.Key>;
+  private groundImage?: Phaser.GameObjects.Image;
+  private groundFill?: Phaser.GameObjects.Graphics;
 
   constructor(private ctx: GameContext) {
     super('Game');
@@ -54,17 +68,14 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.drawGrassTiles();
+    this.drawBuildGrid();
 
-    const bounds = isoMapBounds(GRID_WIDTH, GRID_HEIGHT);
-    const pad = 800;
-    this.cameras.main.setBounds(
-      bounds.minX - pad,
-      bounds.minY - pad,
-      bounds.maxX - bounds.minX + pad * 2,
-      bounds.maxY - bounds.minY + pad * 2,
-    );
+    this.cameras.main.roundPixels = true;
     this.cameras.main.setZoom(DEFAULT_ZOOM);
+    this.layoutGroundAndCamera();
     this.centerOnCity();
+    this.input.mouse?.disableContextMenu();
+    this.scale.on('resize', this.onResize, this);
 
     this.ghostGfx = this.add.graphics().setDepth(10_000);
     this.ghostSprite = this.add
@@ -123,6 +134,7 @@ export class GameScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       zoomIn?.removeEventListener('click', onIn);
       zoomOut?.removeEventListener('click', onOut);
+      this.scale.off('resize', this.onResize, this);
     });
     this.syncZoomButtons();
 
@@ -137,6 +149,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    this.syncBuildGrid();
+    if (!this.pan?.active) this.syncPlacementGhost();
     if (isTextInputTarget(document.activeElement)) return;
     const cam = this.cameras.main;
     const speed = (520 * delta) / 1000 / cam.zoom;
@@ -157,8 +171,53 @@ export class GameScene extends Phaser.Scene {
   }
 
   private applyZoom(direction: 1 | -1): void {
-    this.cameras.main.setZoom(stepZoom(this.cameras.main.zoom, direction));
+    const cam = this.cameras.main;
+    const midX = cam.midPoint.x;
+    const midY = cam.midPoint.y;
+    cam.setZoom(stepZoom(cam.zoom, direction));
+    this.layoutGroundAndCamera();
+    cam.centerOn(midX, midY);
     this.syncZoomButtons();
+  }
+
+  private onResize(): void {
+    const cam = this.cameras.main;
+    const midX = cam.midPoint.x;
+    const midY = cam.midPoint.y;
+    this.layoutGroundAndCamera();
+    cam.centerOn(midX, midY);
+  }
+
+  /** Terrain image on the map AABB; camera bounds keep the island in view. */
+  private layoutGroundAndCamera(): void {
+    const map = isoMapBounds(GRID_WIDTH, GRID_HEIGHT);
+    const cover = groundCoverRect(
+      map,
+      this.scale.width,
+      this.scale.height,
+      ZOOM_LEVELS[0],
+    );
+    const image = groundImageRect(map);
+    const camBounds = cameraBoundsForView(
+      map,
+      this.scale.width,
+      this.scale.height,
+      this.cameras.main.zoom,
+    );
+    const center = isoMapCenter(GRID_WIDTH, GRID_HEIGHT);
+    this.groundImage?.setPosition(center.x, center.y);
+    this.groundImage?.setDisplaySize(image.width, image.height);
+    if (this.groundFill) {
+      this.groundFill.clear();
+      this.groundFill.fillStyle(GROUND_FILL, 1);
+      this.groundFill.fillRect(cover.minX, cover.minY, cover.width, cover.height);
+    }
+    this.cameras.main.setBounds(
+      camBounds.minX,
+      camBounds.minY,
+      camBounds.width,
+      camBounds.height,
+    );
   }
 
   private syncZoomButtons(): void {
@@ -169,19 +228,45 @@ export class GameScene extends Phaser.Scene {
     if (outBtn) outBtn.disabled = z <= ZOOM_LEVELS[0] + 1e-6;
   }
 
-  /** Stamp empty isometric tile sprites across the 50×50 grid. */
+  /** Terrain image aligned to the isometric map; fill pads the zoomed-out view. */
   private drawGrassTiles(): void {
+    this.groundFill = this.add.graphics().setDepth(-2);
+    if (this.textures.exists('ground')) {
+      const center = isoMapCenter(GRID_WIDTH, GRID_HEIGHT);
+      this.groundImage = this.add.image(center.x, center.y, 'ground');
+      this.groundImage.setOrigin(0.5, 0.5);
+      this.groundImage.setDepth(-1);
+    }
+    this.layoutGroundAndCamera();
+
+    if (!SHOW_GROUND_TILES) return;
     for (let ty = 0; ty < GRID_HEIGHT; ty++) {
       for (let tx = 0; tx < GRID_WIDTH; tx++) {
         // Bottom tip of the cell diamond — matches PixelLab thick-tile art.
         const bottom = tileToScreen(tx + 1, ty + 1);
         const empty = this.add.image(bottom.x, bottom.y, 'empty');
         empty.setOrigin(0.5, 1);
-        // Scale 32→64 so tile width matches ISO_TILE_W.
+        // Scale empty-tile art so its width matches ISO_TILE_W.
         empty.setScale(ISO_TILE_W / empty.width);
         empty.setDepth(tx + ty);
       }
     }
+  }
+
+  private drawBuildGrid(): void {
+    const gfx = this.add.graphics().setDepth(2);
+    gfx.lineStyle(1, 0xe8f8ee, 0.38);
+    for (const line of isoGridLines(GRID_WIDTH, GRID_HEIGHT)) {
+      gfx.lineBetween(line.from.x, line.from.y, line.to.x, line.to.y);
+    }
+    gfx.setVisible(false);
+    this.gridGfx = gfx;
+  }
+
+  private syncBuildGrid(): void {
+    const show =
+      this.ctx.getBuildMode() || !!this.ctx.getSelectedBlueprint();
+    this.gridGfx?.setVisible(show);
   }
 
   private tileFromPointer(p: Phaser.Input.Pointer): { x: number; y: number } {
@@ -211,47 +296,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onDown(p: Phaser.Input.Pointer): void {
-    this.drag = null;
-    if (this.ctx.getSelectedBlueprint()) return;
-    const tile = this.tileFromPointer(p);
-    const occupantId = this.ctx.state.grid.getOccupant(tile);
-    if (!occupantId) return;
-    const building = this.ctx.state.buildings.find((b) => b.id === occupantId);
-    if (!building) return;
-    this.drag = {
-      buildingId: occupantId,
-      grabOffset: {
-        x: tile.x - building.origin.x,
-        y: tile.y - building.origin.y,
-      },
-      startX: p.x,
-      startY: p.y,
-      active: false,
-    };
+    this.pan = null;
+    if (this.isPanButton(p)) {
+      this.beginPan(p);
+      return;
+    }
+    if (this.ctx.getSelectedBlueprint()) {
+      const occupant = this.ctx.state.grid.getOccupant(this.tileFromPointer(p));
+      if (!occupant) this.beginPan(p);
+      return;
+    }
+    this.beginPan(p);
   }
 
   private onMove(p: Phaser.Input.Pointer): void {
-    if (this.drag && !this.ctx.getSelectedBlueprint()) {
-      const dx = p.x - this.drag.startX;
-      const dy = p.y - this.drag.startY;
-      if (
-        !this.drag.active &&
-        dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX
-      ) {
-        this.drag.active = true;
-        this.ctx.setSelectedBuildingId(this.drag.buildingId);
-        this.redrawBuildings();
-      }
-      if (this.drag.active) {
-        const building = this.ctx.state.buildings.find(
-          (b) => b.id === this.drag!.buildingId,
-        );
-        if (!building) return;
-        const origin = originFromGrab(
-          this.tileFromPointer(p),
-          this.drag.grabOffset,
-        );
-        this.showPlacementGhost(building.typeId, origin, building.id);
+    if (this.pan) {
+      this.applyPan(p);
+      if (this.pan.active) {
+        this.clearGhost();
         return;
       }
     }
@@ -261,38 +323,28 @@ export class GameScene extends Phaser.Scene {
       this.clearGhost();
       return;
     }
-    this.showPlacementGhost(typeId, this.tileFromPointer(p));
+    const origin = defaultOriginFor(typeId) ?? this.tileFromPointer(p);
+    this.showPlacementGhost(typeId, origin);
   }
 
   private onUp(p: Phaser.Input.Pointer): void {
-    if (this.drag?.active) {
-      const drag = this.drag;
-      this.drag = null;
-      const origin = originFromGrab(
-        this.tileFromPointer(p),
-        drag.grabOffset,
-      );
-      this.clearGhost();
-      void this.ctx.submitMove(drag.buildingId, origin).then((result) => {
-        if (!result.ok) this.flash(result.reason ?? 'invalid placement');
-        this.redrawBuildings();
-      });
+    if (this.pan?.active) {
+      this.pan = null;
+      this.input.setDefaultCursor('default');
       return;
     }
-    this.drag = null;
+    this.pan = null;
+    this.input.setDefaultCursor('default');
 
     const typeId = this.ctx.getSelectedBlueprint();
     const tile = this.tileFromPointer(p);
 
-    // Build mode: place on empty tile; do not place when clicking occupied cell.
     if (typeId) {
-      const occupant = this.ctx.state.grid.getOccupant(tile);
-      if (occupant) {
-        // Occupied — ignore (ghost shows red); stay in build mode.
-        this.flash('tile occupied');
-        return;
-      }
-      void this.ctx.submitPlace(typeId, tile).then((result) => {
+      const def = this.ctx.registry.buildings.get(typeId);
+      if (!def) return;
+      const origin = clickPlacesAt(typeId, tile, def.footprint);
+      if (!origin) return;
+      void this.ctx.submitPlace(typeId, origin).then((result) => {
         if (!result.ok) {
           this.flash(result.reason ?? 'invalid placement');
         } else {
@@ -310,9 +362,68 @@ export class GameScene extends Phaser.Scene {
     this.applySelectionTint();
   }
 
+  private isPanButton(p: Phaser.Input.Pointer): boolean {
+    return p.button === 1 || p.button === 2;
+  }
+
+  private beginPan(p: Phaser.Input.Pointer): void {
+    const cam = this.cameras.main;
+    this.pan = {
+      startX: p.x,
+      startY: p.y,
+      originScrollX: cam.scrollX,
+      originScrollY: cam.scrollY,
+      active: false,
+    };
+  }
+
+  private applyPan(p: Phaser.Input.Pointer): void {
+    if (!this.pan) return;
+    const dx = p.x - this.pan.startX;
+    const dy = p.y - this.pan.startY;
+    if (
+      !this.pan.active &&
+      dx * dx + dy * dy >= DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX
+    ) {
+      this.pan.active = true;
+      this.input.setDefaultCursor('grabbing');
+    }
+    if (!this.pan.active) return;
+    const next = scrollAfterPan(
+      this.pan.originScrollX,
+      this.pan.originScrollY,
+      this.pan.startX,
+      this.pan.startY,
+      p.x,
+      p.y,
+      this.cameras.main.zoom,
+    );
+    this.cameras.main.setScroll(next.scrollX, next.scrollY);
+  }
+
   private clearGhost(): void {
     this.ghostGfx?.clear();
     this.ghostSprite?.setVisible(false);
+  }
+
+  private syncPlacementGhost(): void {
+    const typeId = this.ctx.getSelectedBlueprint();
+    if (!typeId) {
+      if (this.lastGhostType) this.clearGhost();
+      this.lastGhostType = null;
+      return;
+    }
+    const origin = defaultOriginFor(typeId);
+    if (!origin) return;
+    this.showPlacementGhost(typeId, origin);
+    if (this.lastGhostType !== typeId) {
+      const def = this.ctx.registry.buildings.get(typeId);
+      const w = def?.footprint.width ?? 1;
+      const h = def?.footprint.height ?? 1;
+      const screen = tileToScreen(origin.x + w / 2, origin.y + h / 2);
+      this.cameras.main.centerOn(screen.x, screen.y);
+    }
+    this.lastGhostType = typeId;
   }
 
   private showPlacementGhost(
@@ -393,9 +504,7 @@ export class GameScene extends Phaser.Scene {
       sprite.setTexture(b.typeId);
     }
     this.placeBuildingSprite(sprite, def, b.origin);
-    sprite.setAlpha(
-      this.drag?.active && this.drag.buildingId === b.id ? 0.35 : 1,
-    );
+    sprite.setAlpha(1);
   }
 
   private applySelectionTint(): void {

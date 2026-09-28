@@ -5,7 +5,6 @@ import { Grid } from '@/core/grid';
 import { placeBuilding } from '@/core/buildings';
 import {
   MAX_CUSTOM_BUILDINGS,
-  SYSTEM_ART_STYLE,
   CUSTOM_FOOTPRINT,
   applyInventedBuilding,
   composeInventPrompt,
@@ -73,18 +72,25 @@ describe('validateInventInput', () => {
 });
 
 describe('composeInventPrompt', () => {
-  it('leads with player brief, then soft constraints and footprint', () => {
+  it('requires Toriyama style and 2:1 dimetric camera, then footprint', () => {
     const player = 'a cozy noodle stall';
     const text = composeInventPrompt(player, CUSTOM_FOOTPRINT);
-    expect(text.indexOf(player)).toBeLessThan(text.indexOf('Soft constraints'));
+    expect(text.indexOf(player)).toBeLessThan(text.indexOf('Hard style'));
+    expect(text.indexOf('Hard style')).toBeLessThan(text.indexOf('Hard camera'));
+    expect(text.indexOf('Hard camera')).toBeLessThan(text.indexOf('Soft constraints'));
     expect(text.startsWith('Creative isometric pixel-art building:')).toBe(true);
     expect(text).toContain(player);
+    expect(text).toContain('Akira Toriyama');
+    expect(text).toContain('Dr. Slump');
+    expect(text).toContain('Dragon Ball');
     expect(text).toMatch(/3[×x]3 footprint/);
+    expect(text).toContain('dimetric 2:1');
+    expect(text).toContain('tile 2 wide × 1 tall');
+    expect(text).toContain('rotated 45 degrees');
+    expect(text).toContain('NOT front elevation');
     expect(text).toContain('transparent background');
     expect(text).toContain('no UI no text no characters');
     expect(text).toContain('unique silhouette');
-    // SYSTEM_ART_STYLE remains exported for stability
-    expect(SYSTEM_ART_STYLE).toContain('isometric pixel-art');
   });
 });
 
@@ -117,8 +123,12 @@ describe('nextCustomBuildingId', () => {
         { id: 'custom-2' },
         { id: 'custom-3' },
       ]),
-    ).toBeNull();
-    expect(MAX_CUSTOM_BUILDINGS).toBe(3);
+    ).toBe('custom-4');
+    const full = Array.from({ length: MAX_CUSTOM_BUILDINGS }, (_, i) => ({
+      id: `custom-${i + 1}`,
+    }));
+    expect(nextCustomBuildingId(full)).toBeNull();
+    expect(MAX_CUSTOM_BUILDINGS).toBe(10);
   });
 });
 

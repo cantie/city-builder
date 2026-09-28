@@ -1,5 +1,5 @@
 import { uniquifyBuildingIds } from './buildings';
-import { Grid, findPlaceableOrigin } from './grid';
+import { Grid, GRID_HEIGHT, GRID_WIDTH, findPlaceableOrigin } from './grid';
 import { normalizeCustomBuildings, withCustomBuildings } from './customBuilding';
 import { withLicenses } from './licenses';
 import type { ContentRegistry } from './registry';
@@ -163,11 +163,13 @@ export function deserializeGame(
       if (!def) return null;
       if (!grid.canPlace(b.origin, def.footprint)) {
         if (b.typeId === 'main_house') return null;
+        const cx = Math.floor(GRID_WIDTH / 2) - 1;
+        const cy = Math.floor(GRID_HEIGHT / 2) - 1;
         const next = findPlaceableOrigin(grid, def.footprint, [
-          { x: 20, y: 23 },
-          { x: 23, y: 20 },
-          { x: 26, y: 23 },
-          { x: 23, y: 26 },
+          { x: cx - 3, y: cy },
+          { x: cx, y: cy - 3 },
+          { x: cx + 3, y: cy },
+          { x: cx, y: cy + 3 },
         ]);
         if (!next) return null;
         b.origin = { ...next };

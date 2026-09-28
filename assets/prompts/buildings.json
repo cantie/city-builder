@@ -1,6 +1,6 @@
 {
-  "style": "cohesive cozy pixel-art isometric city builder, soft lighting, clean outline, transparent background, single building centered, no UI, no text, no characters",
-  "view": "low top-down",
+  "style": "Akira Toriyama manga building style as in Dr. Slump Penguin Village and early Dragon Ball, low 3/4 isometric game sprite, front facade and door facing the viewer slightly left of center, right side slightly visible, camera a bit above eye level, chunky rounded cartoon architecture, thick clean ink outlines, bright cel-shaded colors, playful quirky mechanical details, warm daylight, no photorealism, not a 45-degree equal-wall dimetric cube, not top-down",
+  "view": "low 3/4 isometric, front door toward camera, right side slightly visible",
   "image_size": {
     "width": 128,
     "height": 128
@@ -9,39 +9,39 @@
     {
       "id": "main_house",
       "file": "main_house.png",
-      "prompt": "isometric pixel art town hall / main house, warm wooden walls, red tiled roof, small chimney, front door, cozy fantasy village style, 2x2 footprint feel, transparent background"
+      "prompt": "player main house, rounded stone-and-wood village hall, orange-red tiled roofs, fat corner turrets, hanging banners, chunky wooden front door facing the viewer"
     },
     {
       "id": "farm",
       "file": "farm.png",
-      "prompt": "isometric pixel art small farm plot with wooden fence, tilled soil and green crops, tiny wooden shed, cozy village style, 1x1 footprint, transparent background"
+      "prompt": "farm plot, wooden fence, tilled soil, leafy green crops, tiny round shed, 3x3 footprint feel"
     },
     {
       "id": "research_institute",
       "file": "research_institute.png",
-      "prompt": "isometric pixel art research institute, stone and wood tower with blue crystal or telescope on roof, window glow, scholarly fantasy village style, 1x1 footprint, transparent background"
+      "prompt": "research hut-tower, stone and wood, blue crystal or telescope on the roof, glowing round windows"
     },
     {
       "id": "lumber_yard",
       "file": "lumber_yard.png",
-      "prompt": "isometric pixel art lumber yard, stacked wood logs, cutting block, small timber shed with saw, earthy tones, cozy village style, 1x1 footprint, transparent background"
+      "prompt": "lumber yard, stacked logs, cutting block, small timber shed with a cartoon saw, 3x3 footprint feel"
     },
     {
       "id": "quarry",
       "file": "quarry.png",
-      "prompt": "isometric pixel art stone quarry, grey rock pit, stacked stone blocks, wooden crane or pickaxe, dusty earthy tones, cozy village style, 1x1 footprint, transparent background"
+      "prompt": "large stone quarry, grey rock pit, stacked blocks, wooden crane and pickaxe, 6x6 footprint feel"
     },
     {
       "id": "warehouse",
       "file": "warehouse.png",
-      "prompt": "isometric pixel art warehouse, wooden storage barn with large doors, stacked crates and barrels outside, earthy brown tones, cozy fantasy village style, 1x1 footprint, transparent background"
+      "prompt": "wooden storage barn, oversized round doors, stacked crates and barrels outside"
     }
   ],
   "tiles": [
     {
       "id": "empty",
       "file": "empty.png",
-      "prompt": "packed dirt ground, warm beige-brown earth, subtle soil grain, flat isometric thick tile, cozy pixel-art city builder, clean single outline, no grass no plants no rocks no flowers no props no cracks no decoration",
+      "prompt": "packed dirt ground, warm beige-brown earth, subtle soil grain, flat isometric thick tile, clean ink outline, no grass no plants no rocks no flowers no props no cracks no decoration",
       "image_size": {
         "width": 64,
         "height": 64

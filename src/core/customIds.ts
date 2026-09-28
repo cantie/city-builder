@@ -1,24 +1,29 @@
 const NAME_MAX = 24;
 
+/** Max invented custom buildings per player. Slot ids are custom-1 … custom-N. */
+export const MAX_CUSTOM_BUILDINGS = 10;
+
 function clipName(text: string): string {
   return text.length <= NAME_MAX ? text : `${text.slice(0, NAME_MAX - 1)}…`;
 }
 
-export function parseCustomSlot(id: string): 1 | 2 | 3 | null {
-  const m = /^custom-([123])$/.exec(id);
+export function parseCustomSlot(id: string): number | null {
+  const m = /^custom-(\d+)$/.exec(id);
   if (!m) return null;
-  return Number(m[1]) as 1 | 2 | 3;
+  const n = Number(m[1]);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_CUSTOM_BUILDINGS) return null;
+  return n;
 }
 
-export function sharedCustomTypeId(owner: string, slot: 1 | 2 | 3): string {
+export function sharedCustomTypeId(owner: string, slot: number): string {
   return `custom-${owner}-${slot}`;
 }
 
-export function sharedResourceId(owner: string, slot: 1 | 2 | 3): string {
+export function sharedResourceId(owner: string, slot: number): string {
   return `res-${owner}-${slot}`;
 }
 
-export function sharedUnitId(owner: string, slot: 1 | 2 | 3): string {
+export function sharedUnitId(owner: string, slot: number): string {
   return `unit-${owner}-${slot}`;
 }
 

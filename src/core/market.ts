@@ -8,7 +8,7 @@ export const DEFAULT_LISTING_PRICE = 20;
 export interface MarketListing {
   typeId: string;
   owner: string;
-  slot: 'custom-1' | 'custom-2' | 'custom-3';
+  slot: string;
   price: number;
   listedAt: number;
   label: string;

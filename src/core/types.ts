@@ -83,7 +83,7 @@ export interface CustomBuilding {
 export interface BuildingLicense {
   typeId: BuildingTypeId;
   owner: string;
-  slot: 'custom-1' | 'custom-2' | 'custom-3';
+  slot: string;
   label: string;
   resourceId: string;
   resourceLabel: string;

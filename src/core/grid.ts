@@ -1,7 +1,7 @@
 import type { Cell, Footprint } from './types';
 
-export const GRID_WIDTH = 50;
-export const GRID_HEIGHT = 50;
+export const GRID_WIDTH = 25;
+export const GRID_HEIGHT = 25;
 
 export class Grid {
   private cells: (string | null)[][];

@@ -4,6 +4,8 @@ import {
   DEFAULT_ZOOM_INDEX,
   ZOOM_LEVELS,
   lookAtTileFromBuildings,
+  scrollAfterPan,
+  scrollAfterZoom,
   stepZoom,
 } from '@/bridge/cameraZoom';
 
@@ -51,5 +53,35 @@ describe('lookAtTileFromBuildings', () => {
         { typeId: 'main_house', origin: { x: 9, y: 9 } },
       ]),
     ).toEqual({ x: 9, y: 9 });
+  });
+});
+
+describe('scrollAfterPan', () => {
+  it('moves the camera opposite the pointer, scaled by zoom', () => {
+    expect(scrollAfterPan(100, 200, 10, 20, 30, 50, 1)).toEqual({
+      scrollX: 80,
+      scrollY: 170,
+    });
+    expect(scrollAfterPan(0, 0, 0, 0, 40, -20, 2)).toEqual({
+      scrollX: -20,
+      scrollY: 10,
+    });
+  });
+});
+
+describe('scrollAfterZoom', () => {
+  it('keeps the same world midpoint after zoom so the background does not jump', () => {
+    expect(scrollAfterZoom(400, 300, 800, 600, 1)).toEqual({
+      scrollX: 0,
+      scrollY: 0,
+    });
+    expect(scrollAfterZoom(400, 300, 800, 600, 2)).toEqual({
+      scrollX: 200,
+      scrollY: 150,
+    });
+    expect(scrollAfterZoom(0, 0, 800, 600, 0.5)).toEqual({
+      scrollX: -800,
+      scrollY: -600,
+    });
   });
 });

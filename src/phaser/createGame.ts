@@ -13,6 +13,7 @@ export interface GameContext {
   selectedBuildingId: string | null;
   getSelectedBuildingId: () => string | null;
   setSelectedBuildingId: (id: string | null) => void;
+  getBuildMode: () => boolean;
   submitPlace: (
     typeId: BuildingTypeId,
     origin: { x: number; y: number },
@@ -22,6 +23,8 @@ export interface GameContext {
     origin: { x: number; y: number },
   ) => Promise<{ ok: boolean; reason?: string }>;
 }
+
+export const GROUND_COLOR_HEX = '#7eb85a';
 
 export function createGame(parent: string, ctx: GameContext): Phaser.Game {
   const el = document.getElementById(parent);
@@ -33,7 +36,8 @@ export function createGame(parent: string, ctx: GameContext): Phaser.Game {
     parent,
     width,
     height,
-    backgroundColor: '#2d6a4f',
+    backgroundColor: GROUND_COLOR_HEX,
+    roundPixels: true,
     scale: {
       mode: Phaser.Scale.RESIZE,
       autoCenter: Phaser.Scale.NO_CENTER,

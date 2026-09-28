@@ -1,3 +1,5 @@
+import { GRID_HEIGHT, GRID_WIDTH } from '@/core/grid';
+
 export const ZOOM_LEVELS = [0.4, 0.65, 1.0, 1.5] as const;
 export const DEFAULT_ZOOM_INDEX = 2;
 export const DEFAULT_ZOOM = ZOOM_LEVELS[DEFAULT_ZOOM_INDEX];
@@ -39,5 +41,37 @@ export function lookAtTileFromBuildings(
     };
   }
   if (main) return { ...main.origin };
-  return { x: 25, y: 25 };
+  return { x: GRID_WIDTH / 2, y: GRID_HEIGHT / 2 };
+}
+
+/** New camera scroll after dragging from (startX, startY) to (pointerX, pointerY). */
+export function scrollAfterPan(
+  originScrollX: number,
+  originScrollY: number,
+  startX: number,
+  startY: number,
+  pointerX: number,
+  pointerY: number,
+  zoom: number,
+): { scrollX: number; scrollY: number } {
+  const z = zoom === 0 ? 1 : zoom;
+  return {
+    scrollX: originScrollX - (pointerX - startX) / z,
+    scrollY: originScrollY - (pointerY - startY) / z,
+  };
+}
+
+/** Camera scroll that keeps (midX, midY) at the viewport center after a zoom change. */
+export function scrollAfterZoom(
+  midX: number,
+  midY: number,
+  viewWidth: number,
+  viewHeight: number,
+  zoom: number,
+): { scrollX: number; scrollY: number } {
+  const z = zoom === 0 ? 1 : zoom;
+  return {
+    scrollX: midX - viewWidth / (2 * z),
+    scrollY: midY - viewHeight / (2 * z),
+  };
 }

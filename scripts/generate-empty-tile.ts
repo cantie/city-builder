@@ -48,7 +48,7 @@ async function pollTile(tileId: string): Promise<unknown> {
 }
 
 const description =
-  'packed dirt ground, warm beige-brown earth, subtle soil grain, flat isometric thick tile, cozy pixel-art city builder, clean single outline, no grass no plants no rocks no flowers no props no cracks no decoration';
+  'Akira Toriyama manga style as in Dr. Slump Penguin Village, packed dirt ground, warm beige-brown earth, subtle soil grain, flat isometric thick tile, clean ink outline, no grass no plants no rocks no flowers no props no cracks no decoration';
 
 const res = await fetch('https://api.pixellab.ai/v2/create-isometric-tile', {
   method: 'POST',

@@ -112,24 +112,10 @@ export function originFromGrab(dropTile: Cell, grabOffset: Cell): Cell {
 }
 
 export function moveBuilding(
-  state: GameState,
-  registry: ContentRegistry,
-  buildingId: string,
-  origin: Cell,
+  _state: GameState,
+  _registry: ContentRegistry,
+  _buildingId: string,
+  _origin: Cell,
 ): MoveResult {
-  const building = state.buildings.find((b) => b.id === buildingId);
-  if (!building) return { ok: false, reason: 'not found' };
-  const def = registry.buildings.get(building.typeId);
-  if (!def) return { ok: false, reason: 'unknown building type' };
-  if (building.origin.x === origin.x && building.origin.y === origin.y) {
-    return { ok: true };
-  }
-  state.grid.vacate(building.origin, def.footprint);
-  if (!state.grid.canPlace(origin, def.footprint)) {
-    state.grid.occupy(building.id, building.origin, def.footprint);
-    return { ok: false, reason: 'invalid placement' };
-  }
-  building.origin = { ...origin };
-  state.grid.occupy(building.id, origin, def.footprint);
-  return { ok: true };
+  return { ok: false, reason: 'moving disabled' };
 }

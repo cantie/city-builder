@@ -12,7 +12,7 @@
   {
     "id": "farm",
     "label": "Farm",
-    "footprint": { "width": 2, "height": 2 },
+    "footprint": { "width": 3, "height": 3 },
     "demolishable": true,
     "cost": { "wood": 5, "food": 2 },
     "meshColor": 2263842,
@@ -33,7 +33,7 @@
   {
     "id": "lumber_yard",
     "label": "Lumber Yard",
-    "footprint": { "width": 2, "height": 2 },
+    "footprint": { "width": 3, "height": 3 },
     "demolishable": true,
     "cost": { "wood": 10, "stone": 4 },
     "meshColor": 139,
@@ -44,7 +44,7 @@
   {
     "id": "quarry",
     "label": "Stone Quarry",
-    "footprint": { "width": 2, "height": 2 },
+    "footprint": { "width": 6, "height": 6 },
     "demolishable": true,
     "cost": { "wood": 10, "food": 4 },
     "meshColor": 8947848,

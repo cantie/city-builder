@@ -10,6 +10,7 @@
     "warehouse": "assets/buildings/warehouse.png"
   },
   "tiles": {
-    "empty": "assets/tiles/empty.png"
+    "empty": "assets/tiles/empty.png",
+    "ground": "assets/tiles/ground.png"
   }
 }

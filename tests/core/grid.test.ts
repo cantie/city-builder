@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { Grid, GRID_WIDTH, GRID_HEIGHT } from '@/core/grid';
 
 describe('Grid', () => {
-  it('exposes fixed 50×50 size', () => {
-    expect(GRID_WIDTH).toBe(50);
-    expect(GRID_HEIGHT).toBe(50);
+  it('exposes a 25×25 grid', () => {
+    expect(GRID_WIDTH).toBe(25);
+    expect(GRID_HEIGHT).toBe(25);
   });
 
   it('allows placing a 1×1 in bounds on empty cell', () => {
@@ -14,7 +14,7 @@ describe('Grid', () => {
 
   it('rejects out-of-bounds footprint', () => {
     const g = new Grid();
-    expect(g.canPlace({ x: 49, y: 49 }, { width: 2, height: 2 })).toBe(false);
+    expect(g.canPlace({ x: 24, y: 24 }, { width: 2, height: 2 })).toBe(false);
     expect(g.canPlace({ x: -1, y: 0 }, { width: 1, height: 1 })).toBe(false);
   });
 

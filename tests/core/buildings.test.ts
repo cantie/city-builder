@@ -120,42 +120,15 @@ describe('placeBuilding / demolishBuilding', () => {
 });
 
 describe('moveBuilding', () => {
-  it('moves a farm to an empty cell and keeps instance data', () => {
+  it('rejects every move so buildings stay on their slots', () => {
     const registry = createRegistry(buildings, recipes, research);
     const state = freshState();
     placeBuilding(state, registry, 'farm', { x: 0, y: 0 }, () => 'farm-1');
-    const farm = state.buildings.find((b) => b.id === 'farm-1')!;
-    farm.level = 2;
-    farm.pending = { food: 3 };
-
     const result = moveBuilding(state, registry, 'farm-1', { x: 3, y: 4 });
-    expect(result.ok).toBe(true);
-    expect(farm.origin).toEqual({ x: 3, y: 4 });
-    expect(farm.level).toBe(2);
-    expect(farm.pending).toEqual({ food: 3 });
-    expect(state.grid.getOccupant({ x: 0, y: 0 })).toBeNull();
-    expect(state.grid.getOccupant({ x: 3, y: 4 })).toBe('farm-1');
-  });
-
-  it('allows main house to move and can shift a 2x2 onto its old cells', () => {
-    const registry = createRegistry(buildings, recipes, research);
-    const state = freshState();
-    const result = moveBuilding(state, registry, 'main-1', { x: 10, y: 9 });
-    expect(result.ok).toBe(true);
-    expect(state.grid.getOccupant({ x: 9, y: 9 })).toBeNull();
-    expect(state.grid.getOccupant({ x: 10, y: 9 })).toBe('main-1');
-    expect(state.grid.getOccupant({ x: 11, y: 10 })).toBe('main-1');
-  });
-
-  it('rejects overlap and restores the original occupancy', () => {
-    const registry = createRegistry(buildings, recipes, research);
-    const state = freshState();
-    placeBuilding(state, registry, 'farm', { x: 0, y: 0 }, () => 'farm-1');
-    const result = moveBuilding(state, registry, 'farm-1', { x: 9, y: 9 });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('invalid placement');
+    if (!result.ok) expect(result.reason).toBe('moving disabled');
     expect(state.grid.getOccupant({ x: 0, y: 0 })).toBe('farm-1');
-    expect(state.grid.getOccupant({ x: 9, y: 9 })).toBe('main-1');
+    expect(state.grid.getOccupant({ x: 3, y: 4 })).toBeNull();
   });
 
   it('allocates ids from existing buildings instead of a process counter', () => {

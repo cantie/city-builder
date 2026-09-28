@@ -1,5 +1,6 @@
 import { demolishBuilding } from './buildings';
 import {
+  MAX_CUSTOM_BUILDINGS,
   fallbackInventNames,
   parseCustomSlot,
   sharedResourceId,
@@ -17,7 +18,8 @@ import type {
   ResourceId,
 } from './types';
 
-export const MAX_CUSTOM_BUILDINGS = 3;
+export { MAX_CUSTOM_BUILDINGS };
+
 export const CUSTOM_FOOTPRINT: Footprint = { width: 3, height: 3 };
 export const DEFAULT_EXPORT_PRICE = 2;
 export const INVENT_COST: Partial<Record<ResourceId, number>> = {
@@ -83,6 +85,11 @@ export function normalizeCustomBuildings(
 export function composeInventPrompt(prompt: string, footprint: Footprint): string {
   return (
     `Creative isometric pixel-art building: ${prompt}. ` +
+    `Hard style: Akira Toriyama manga art (Dr. Slump, Dragon Ball), ` +
+    `chunky rounded cartoon architecture, thick ink outlines, bright cel-shaded colors. ` +
+    `Hard camera: pixel-art dimetric 2:1 isometric game view (tile 2 wide × 1 tall), ` +
+    `building rotated 45 degrees, two walls equally visible, diagonal roof ridge, ` +
+    `NOT front elevation, NOT 3/4 facing-the-camera, NOT perspective. ` +
     `Soft constraints: ${footprint.width}×${footprint.height} footprint feel, ` +
     `transparent background, no UI no text no characters, cohesive game-ready sprite, ` +
     `encourage unique silhouette and details.`

@@ -127,8 +127,8 @@ describe('PlayerStore', () => {
       const placed = await store.apply('Ada', {
         op: 'place',
         typeId: 'custom-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       expect(placed.ok).toBe(true);
 
@@ -177,8 +177,8 @@ describe('PlayerStore', () => {
       const placed = await store.apply('Ada', {
         op: 'place',
         typeId: 'custom-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       expect(placed.ok).toBe(true);
       const origin = placed.game.buildings.find((b) => b.typeId === 'custom-1')!;
@@ -232,8 +232,8 @@ describe('PlayerStore', () => {
       const placed = await store.apply('Ada', {
         op: 'place',
         typeId: 'custom-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       expect(placed.ok).toBe(true);
       const listed = await store.listOnMarket('Ada', 'custom-1', 20);
@@ -262,8 +262,8 @@ describe('PlayerStore', () => {
       const replica = await store.apply('Bob', {
         op: 'place',
         typeId: 'custom-ada-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       expect(replica.ok).toBe(true);
       expect(
@@ -304,8 +304,8 @@ describe('PlayerStore', () => {
       const placed = await store.apply('Ada', {
         op: 'place',
         typeId: 'custom-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       const origin = placed.game.buildings.find((b) => b.typeId === 'custom-1')!;
       await store.listOnMarket('Ada', 'custom-1', 20);
@@ -326,8 +326,8 @@ describe('PlayerStore', () => {
       const replica = await store.apply('Bob', {
         op: 'place',
         typeId: 'custom-ada-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       expect(replica.ok).toBe(true);
       const replicaId = replica.game.buildings.find(
@@ -376,8 +376,8 @@ describe('PlayerStore', () => {
       const placed = await store.apply('Ada', {
         op: 'place',
         typeId: 'custom-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       const origin = placed.game.buildings.find((b) => b.typeId === 'custom-1')!;
       await store.listOnMarket('Ada', 'custom-1', 20);
@@ -399,8 +399,8 @@ describe('PlayerStore', () => {
       const replica = await store.apply('Bob', {
         op: 'place',
         typeId: 'custom-ada-1',
-        x: 10,
-        y: 10,
+        x: 0,
+        y: 16,
       });
       const replicaId = replica.game.buildings.find(
         (b) => b.typeId === 'custom-ada-1',

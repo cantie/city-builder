@@ -7,15 +7,16 @@ import type { BuildingTypeId, GameState } from './types';
 import { saveGame } from './save';
 import type { StorageAdapter } from './storage';
 import defaultUpgradesJson from '@/data/upgrades.json';
+import { DEFAULT_BUILDING_ORIGINS } from './buildingSlots';
 
 const defaultUpgrades = defaultUpgradesJson as UpgradesConfig;
 
-export const MAIN_HOUSE_ORIGIN = { x: 23, y: 23 };
-export const WAREHOUSE_ORIGIN = { x: 20, y: 23 };
+export const MAIN_HOUSE_ORIGIN = DEFAULT_BUILDING_ORIGINS.main_house!;
+export const WAREHOUSE_ORIGIN = DEFAULT_BUILDING_ORIGINS.warehouse!;
 export const STARTING_COIN = 100;
 
 /**
- * New game: main house 3×3 near map center, warehouse 3×3 adjacent on the west.
+ * New game: main house and warehouse on the zzz city slots.
  */
 export function createNewGame(
   registry: ContentRegistry,
@@ -61,7 +62,7 @@ export function createNewGame(
     throw new Error(`failed to spawn main house: ${main.reason}`);
   }
 
-  // Main 3×3 at (23,23)–(25,25); warehouse 3×3 at (20,23)–(22,25).
+  // Main 3×3 near center; warehouse 3×3 immediately west.
   const wh = placeBuilding(
     state,
     registry,
@@ -107,11 +108,11 @@ export function ensureWarehouseMigrated(
 
   const preferred = [
     WAREHOUSE_ORIGIN,
-    { x: 23, y: 20 },
-    { x: 26, y: 23 },
-    { x: 23, y: 26 },
-    { x: 20, y: 20 },
-    { x: 26, y: 20 },
+    { x: MAIN_HOUSE_ORIGIN.x, y: MAIN_HOUSE_ORIGIN.y - 3 },
+    { x: MAIN_HOUSE_ORIGIN.x + 3, y: MAIN_HOUSE_ORIGIN.y },
+    { x: MAIN_HOUSE_ORIGIN.x, y: MAIN_HOUSE_ORIGIN.y + 3 },
+    { x: WAREHOUSE_ORIGIN.x, y: WAREHOUSE_ORIGIN.y - 3 },
+    { x: MAIN_HOUSE_ORIGIN.x + 3, y: MAIN_HOUSE_ORIGIN.y - 3 },
   ];
   const scan = Array.from({ length: GRID_HEIGHT * GRID_WIDTH }, (_, i) => ({
     x: i % GRID_WIDTH,

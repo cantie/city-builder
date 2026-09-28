@@ -14,7 +14,7 @@ import {
   trainDisabledReason,
   type SidebarPanel,
 } from '@/phaser/hud/hudLogic';
-import { INVENT_COST } from '@/core/customBuilding';
+import { INVENT_COST, MAX_CUSTOM_BUILDINGS } from '@/core/customBuilding';
 import { isOriginCustom } from '@/core/customEconomy';
 import { DEFAULT_LISTING_PRICE, type MarketListing } from '@/core/market';
 import type { ContentRegistry } from '@/core/registry';
@@ -36,6 +36,7 @@ export interface SidebarDeps {
   setSelectedBlueprint: (id: BuildingTypeId | null) => void;
   getSelectedBuildingId: () => string | null;
   setSelectedBuildingId: (id: string | null) => void;
+  setBuildMode?: (on: boolean) => void;
   commands: {
     harvest: (buildingId: string) => Promise<SidebarCommandResult>;
     train: (buildingId: string) => Promise<SidebarCommandResult>;
@@ -373,6 +374,7 @@ export class Sidebar {
     this.buildSection.hidden = !show;
     this.actionBuildBtn.classList.toggle('active', show);
     this.actionBuildBtn.setAttribute('aria-pressed', String(show));
+    this.deps.setBuildMode?.(show);
     this.cancelBuildBtn.hidden = !show || selected == null;
     this.buildBody.replaceChildren();
     if (!show) return;
@@ -469,7 +471,7 @@ export class Sidebar {
 
   private renderInvent(state: GameState): void {
     const n = (state.customBuildings ?? []).length;
-    this.inventCount.textContent = `(${n}/3)`;
+    this.inventCount.textContent = `(${n}/${MAX_CUSTOM_BUILDINGS})`;
     const reason = inventDisabledReason(state);
     this.inventHint.textContent = reason
       ? reason
